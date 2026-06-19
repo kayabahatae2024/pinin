@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>催事記録検索</title>
+<title>【検索ページ】事前確認チェックシート</title>
 <style>
   :root{
     --ink:#1c1f1a;
@@ -62,10 +62,11 @@
   }
   .brand-mark svg{width:20px;height:20px;}
   .login-card h1{
-    font-size:19px;
+    font-size:18px;
     font-weight:700;
-    margin:0 0 4px;
+    margin:0 0 8px;
     letter-spacing:0.02em;
+    line-height:1.5;
   }
   .login-card .sub{
     font-size:12.5px;
@@ -127,17 +128,29 @@
     position:sticky;top:0;z-index:10;
     background:var(--moss-deep);
     color:#fff;
-    padding:14px 16px;
+    padding:12px 14px;
     display:flex;
     align-items:center;
     justify-content:space-between;
+    gap:8px;
   }
-  .app-header .title-group{display:flex;align-items:center;gap:9px;}
+  .app-header .title-group{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:0;
+  }
+  .app-header .brand-mark{flex-shrink:0;}
+  .app-header .title-text{min-width:0;}
   .app-header h2{
-    font-size:15px;
+    font-size:13px;
     font-weight:700;
     margin:0;
-    letter-spacing:0.02em;
+    letter-spacing:0.01em;
+    line-height:1.4;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
   .app-header .staff-name{
     font-size:11px;
@@ -149,9 +162,11 @@
     border:none;
     color:#fff;
     font-size:12px;
-    padding:7px 12px;
+    padding:7px 10px;
     border-radius:6px;
     cursor:pointer;
+    flex-shrink:0;
+    white-space:nowrap;
   }
 
   /* ---------- 検索フォームエリア ---------- */
@@ -211,8 +226,12 @@
     background:#fcfbf8;
     color:var(--ink);
   }
-  .date-range{display:flex;align-items:center;gap:6px;}
-  .date-range span{font-size:12px;color:var(--muted);}
+  .date-range{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .date-range input[type="date"]{
+    flex:1 1 0;
+    min-width:0;
+  }
+  .date-range span{font-size:12px;color:var(--muted);flex-shrink:0;}
   .filter-actions{
     grid-column:1/3;
     display:flex;
@@ -257,44 +276,42 @@
     background:var(--card);
     border:1px solid var(--line);
     border-radius:9px;
-    padding:13px 14px;
-    cursor:pointer;
-    transition:border-color .12s;
-  }
-  .result-card:active{border-color:var(--moss);}
-  .result-card .row1{
-    display:flex;
-    justify-content:space-between;
-    align-items:baseline;
-    margin-bottom:5px;
+    padding:14px 15px;
   }
   .result-card .store{
-    font-size:15px;
-    font-weight:700;
-    color:var(--ink);
-  }
-  .result-card .date{
-    font-size:12px;
+    font-size:18px;
+    font-weight:800;
     color:var(--moss-deep);
-    font-weight:600;
-    background:#eaf0e9;
-    padding:2px 8px;
-    border-radius:5px;
-    white-space:nowrap;
+    margin-bottom:8px;
+    padding-bottom:8px;
+    border-bottom:2px solid var(--moss);
   }
-  .result-card .manager{
-    font-size:12.5px;
+  .result-card .info-row{
+    display:flex;
+    padding:5px 0;
+    font-size:13px;
+    gap:10px;
+  }
+  .result-card .info-row .k{
+    width:38%;
+    flex-shrink:0;
     color:var(--muted);
+    font-size:12px;
+    padding-top:1px;
   }
-  .result-card .claim-badge{
-    display:inline-block;
-    margin-top:6px;
-    font-size:11px;
+  .result-card .info-row .v{
+    flex:1;
+    color:var(--ink);
+    line-height:1.6;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+  .result-card .info-row.claim .v{
     color:var(--danger);
-    background:#fbeae5;
-    padding:2px 8px;
-    border-radius:5px;
     font-weight:600;
+  }
+  .result-card .info-row.empty .v{
+    color:#b8b4a6;
   }
   .empty-state{
     text-align:center;
@@ -319,93 +336,6 @@
   }
   @keyframes spin{to{transform:rotate(360deg);}}
 
-  /* ---------- 詳細モーダル ---------- */
-  .detail-overlay{
-    display:none;
-    position:fixed;inset:0;
-    background:rgba(28,31,26,0.45);
-    z-index:50;
-    justify-content:center;
-    align-items:flex-end;
-  }
-  .detail-overlay.show{display:flex;}
-  .detail-sheet{
-    background:var(--paper);
-    width:100%;
-    max-width:480px;
-    max-height:88vh;
-    border-radius:16px 16px 0 0;
-    display:flex;
-    flex-direction:column;
-    animation:slideUp .22s ease-out;
-  }
-  @keyframes slideUp{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}
-  .detail-header{
-    padding:16px 18px 12px;
-    border-bottom:1px solid var(--line);
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    background:var(--card);
-    border-radius:16px 16px 0 0;
-  }
-  .detail-header .store{
-    font-size:17px;
-    font-weight:700;
-  }
-  .detail-header .date{
-    font-size:12.5px;
-    color:var(--moss-deep);
-    margin-top:3px;
-  }
-  .close-btn{
-    background:#f0ede4;
-    border:none;
-    width:30px;height:30px;
-    border-radius:50%;
-    font-size:16px;
-    color:var(--muted);
-    cursor:pointer;
-    flex-shrink:0;
-  }
-  .detail-body{
-    overflow-y:auto;
-    padding:14px 18px 30px;
-  }
-  .detail-group{margin-bottom:18px;}
-  .detail-group .group-title{
-    font-size:11.5px;
-    font-weight:700;
-    color:var(--moss-deep);
-    letter-spacing:0.04em;
-    margin-bottom:8px;
-    padding-bottom:5px;
-    border-bottom:1px solid var(--line);
-  }
-  .detail-row{
-    display:flex;
-    padding:6px 0;
-    font-size:13.5px;
-    border-bottom:1px solid #ece9de;
-    gap:10px;
-  }
-  .detail-row:last-child{border-bottom:none;}
-  .detail-row .k{
-    width:38%;
-    flex-shrink:0;
-    color:var(--muted);
-    font-size:12.5px;
-    padding-top:1px;
-  }
-  .detail-row .v{
-    flex:1;
-    color:var(--ink);
-    line-height:1.6;
-    white-space:pre-wrap;
-    word-break:break-word;
-  }
-  .detail-row.claim .v{color:var(--danger);font-weight:600;}
-
   @media (min-width:520px){
     .login-card{padding:40px 36px 34px;}
   }
@@ -418,11 +348,11 @@
   <div class="login-card">
     <div class="brand-mark">
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 21V9L12 3L20 9V21H4Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
-        <path d="M9 21V13H15V21" stroke="white" stroke-width="2"/>
+        <circle cx="10.5" cy="10.5" r="6.5" stroke="white" stroke-width="2"/>
+        <path d="M19.5 19.5L15.2 15.2" stroke="white" stroke-width="2" stroke-linecap="round"/>
       </svg>
     </div>
-    <h1>催事記録検索</h1>
+    <h1>【検索ページ】<br>事前確認チェックシート</h1>
     <p class="sub">社員IDとパスワードでログインしてください。</p>
 
     <div id="loginError" class="login-error"></div>
@@ -446,13 +376,13 @@
   <div class="app-header">
     <div class="title-group">
       <div class="brand-mark" style="width:30px;height:30px;">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:15px;height:15px;">
-          <path d="M4 21V9L12 3L20 9V21H4Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M9 21V13H15V21" stroke="white" stroke-width="2"/>
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;">
+          <circle cx="10.5" cy="10.5" r="6.5" stroke="white" stroke-width="2"/>
+          <path d="M19.5 19.5L15.2 15.2" stroke="white" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </div>
-      <div>
-        <h2>催事記録検索</h2>
+      <div class="title-text">
+        <h2>【検索ページ】事前確認チェックシート</h2>
         <div class="staff-name" id="staffNameLabel"></div>
       </div>
     </div>
@@ -497,25 +427,11 @@
   <div class="result-list" id="resultList"></div>
 </div>
 
-<!-- ============ 詳細モーダル ============ -->
-<div class="detail-overlay" id="detailOverlay">
-  <div class="detail-sheet">
-    <div class="detail-header">
-      <div>
-        <div class="store" id="detailStore"></div>
-        <div class="date" id="detailDate"></div>
-      </div>
-      <button class="close-btn" id="closeDetailBtn">✕</button>
-    </div>
-    <div class="detail-body" id="detailBody"></div>
-  </div>
-</div>
-
 <script>
 /* =========================================================
    設定：ここにGASのウェブアプリURLを貼り付けてください
    ========================================================= */
-const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwZqydB_UR6Rv7UFGIJ-cvVACknVJ4XVwwwVIgKkufjwHpxJXHR20a22BVMOyCXHHigKg/exec';
+const GAS_API_URL = 'ここにGASのデプロイURLを貼り付け';
 
 /* ---------------- 状態管理 ---------------- */
 let state = {
@@ -680,6 +596,15 @@ async function doSearch() {
   }
 }
 
+/* 一覧カードに表示する項目（この並び順で表示） */
+const CARD_FIELDS = [
+  { key: 'レコード番号', label: 'レコード番号' },
+  { key: 'スーパー店長名', label: 'スーパー店長の名前' },
+  { key: '初日の対応者', label: '初日の対応者（催事責任者）' },
+  { key: '過去のクレーム事案', label: '過去のクレーム事案（注意事項）', claim: true },
+  { key: 'その他備考', label: 'その他備考（例：搬入時間、場所など）' }
+];
+
 function renderResults(data) {
   const listEl = $('resultList');
   const metaEl = $('resultMeta');
@@ -694,91 +619,27 @@ function renderResults(data) {
   if (data.truncated) metaText += `（上位200件を表示中。絞り込みで対象を減らしてください）`;
   metaEl.textContent = metaText;
 
-  listEl.innerHTML = data.results.map((item, idx) => {
-    const hasClaim = item['過去のクレーム事案'] && String(item['過去のクレーム事案']).trim() !== '';
+  listEl.innerHTML = data.results.map((item) => {
+    const rows = CARD_FIELDS.map(f => {
+      const raw = item[f.key];
+      const hasValue = raw !== undefined && raw !== null && String(raw).trim() !== '';
+      const cls = f.claim && hasValue ? 'claim' : (!hasValue ? 'empty' : '');
+      const valueText = hasValue ? escapeHtml(String(raw)) : 'なし';
+      return `
+        <div class="info-row ${cls}">
+          <div class="k">${escapeHtml(f.label)}</div>
+          <div class="v">${valueText}</div>
+        </div>`;
+    }).join('');
+
     return `
-      <div class="result-card" data-idx="${idx}">
-        <div class="row1">
-          <span class="store">${escapeHtml(item['店舗名'] || '（店舗名未記入）')}</span>
-          <span class="date">${escapeHtml(item['開催日'] || '')}</span>
-        </div>
-        <div class="manager">店長：${escapeHtml(item['店長名'] || '-')}　/　SV：${escapeHtml(item['スーパー店長名'] || '-')}</div>
-        ${hasClaim ? '<span class="claim-badge">過去のクレーム事案あり</span>' : ''}
+      <div class="result-card">
+        <div class="store">${escapeHtml(item['店舗名'] || '（店舗名未記入）')}</div>
+        ${rows}
       </div>
     `;
   }).join('');
-
-  listEl.querySelectorAll('.result-card').forEach(card => {
-    card.addEventListener('click', () => openDetail(parseInt(card.dataset.idx, 10)));
-  });
 }
-
-/* ---------------- 詳細表示 ---------------- */
-const DETAIL_GROUPS = [
-  {
-    title: '基本情報',
-    fields: ['レコード番号','開催日','店舗名','店長名','スーパー店長名','初日の対応者','店長の交渉']
-  },
-  {
-    title: '交渉内容の詳細',
-    fields: ['交渉日付','交渉時間','店長の役職','変更箇所','なぜ','どのように']
-  },
-  {
-    title: '設置・場所情報',
-    fields: ['スペース設置範囲','スペース設置範囲その他','声掛けの場所_サッカー台','声掛けの場所_出入口','声掛けの場所_外','メイン催事場所','メイン催事場所その他','ガラポンの場所','ガラポン場所その他','チラシ配布の場所','チラシ配布の場所その他']
-  },
-  {
-    title: '注意事項・備考',
-    fields: ['過去のクレーム事案','その他備考']
-  },
-  {
-    title: '管理情報',
-    fields: ['作成日時']
-  }
-];
-const LABELS = {
-  'レコード番号':'レコード番号','開催日':'開催日','店舗名':'店舗名','店長名':'店長名（自分の名前）','スーパー店長名':'スーパー店長の名前',
-  '初日の対応者':'初日の対応者（催事責任者）','店長の交渉':'店長（責任者）の交渉',
-  '交渉日付':'交渉日付','交渉時間':'交渉時間','店長の役職':'店長（責任者）の役職','変更箇所':'変更箇所','なぜ':'なぜ','どのように':'どのように',
-  'スペース設置範囲':'スペース（設置範囲）2m×2m','スペース設置範囲その他':'スペース（設置範囲）2m×2m（その他）',
-  '声掛けの場所_サッカー台':'声掛けの場所（サッカー台）','声掛けの場所_出入口':'声掛けの場所（出入口）','声掛けの場所_外':'声掛けの場所（外）',
-  'メイン催事場所':'メイン催事場所','メイン催事場所その他':'メイン催事場所（その他）',
-  'ガラポンの場所':'ガラポンの場所','ガラポン場所その他':'ガラポン場所（その他）',
-  'チラシ配布の場所':'チラシ配布の場所','チラシ配布の場所その他':'チラシ配布の場所（その他）',
-  '過去のクレーム事案':'過去のクレーム事案（注意事項）','その他備考':'その他備考',
-  '作成日時':'作成日時'
-};
-
-function openDetail(idx) {
-  const item = state.results[idx];
-  if (!item) return;
-
-  $('detailStore').textContent = item['店舗名'] || '（店舗名未記入）';
-  $('detailDate').textContent = item['開催日'] || '';
-
-  let html = '';
-  DETAIL_GROUPS.forEach(group => {
-    const rows = group.fields
-      .filter(f => item[f] !== undefined && item[f] !== '' && item[f] !== null)
-      .map(f => {
-        const isClaim = f === '過去のクレーム事案';
-        return `<div class="detail-row ${isClaim ? 'claim' : ''}">
-          <div class="k">${escapeHtml(LABELS[f] || f)}</div>
-          <div class="v">${escapeHtml(String(item[f]))}</div>
-        </div>`;
-      }).join('');
-    if (rows) {
-      html += `<div class="detail-group"><div class="group-title">${group.title}</div>${rows}</div>`;
-    }
-  });
-
-  $('detailBody').innerHTML = html || '<p style="color:var(--muted);font-size:13px;">表示できる詳細情報がありません。</p>';
-  $('detailOverlay').classList.add('show');
-}
-$('closeDetailBtn').addEventListener('click', () => $('detailOverlay').classList.remove('show'));
-$('detailOverlay').addEventListener('click', (e) => {
-  if (e.target === $('detailOverlay')) $('detailOverlay').classList.remove('show');
-});
 
 /* ---------------- ユーティリティ ---------------- */
 function escapeHtml(str) {
