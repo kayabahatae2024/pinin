@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>催事記録検索</title>
+<style>
+  :root{
+    --ink:#1c1f1a;
+    --paper:#f7f5ef;
+    --line:#d8d4c4;
+    --moss:#3f5b44;
+    --moss-deep:#2c4131;
+    --clay:#b5563a;
+    --muted:#7a7666;
+    --card:#ffffff;
+    --danger:#b5563a;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  /* ---------- レイアウト共通 ---------- */
+  .screen{
+    display:none;
+    min-height:100vh;
+    flex-direction:column;
+  }
+  .screen.active{display:flex;}
+
+  /* ---------- ログイン画面 ---------- */
+  #loginScreen{
+    justify-content:center;
+    align-items:center;
+    padding:24px;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(63,91,68,0.08), transparent 45%),
+      radial-gradient(circle at 85% 90%, rgba(181,86,58,0.07), transparent 45%),
+      var(--paper);
+  }
+  .login-card{
+    width:100%;
+    max-width:360px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:32px 26px 28px;
+    box-shadow:0 1px 2px rgba(28,31,26,0.04);
+  }
+  .brand-mark{
+    width:40px;height:40px;
+    border-radius:8px;
+    background:var(--moss);
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:18px;
+  }
+  .brand-mark svg{width:20px;height:20px;}
+  .login-card h1{
+    font-size:19px;
+    font-weight:700;
+    margin:0 0 4px;
+    letter-spacing:0.02em;
+  }
+  .login-card .sub{
+    font-size:12.5px;
+    color:var(--muted);
+    margin:0 0 26px;
+    line-height:1.6;
+  }
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block;
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--muted);
+    letter-spacing:0.04em;
+    margin-bottom:6px;
+  }
+  .field input{
+    width:100%;
+    padding:13px 14px;
+    font-size:16px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fcfbf8;
+    color:var(--ink);
+    outline:none;
+    transition:border-color .15s;
+  }
+  .field input:focus{border-color:var(--moss);background:#fff;}
+  .btn-primary{
+    width:100%;
+    padding:14px;
+    font-size:15px;
+    font-weight:700;
+    letter-spacing:0.03em;
+    color:#fff;
+    background:var(--moss);
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    margin-top:6px;
+    transition:background .15s, transform .1s;
+  }
+  .btn-primary:active{transform:scale(0.98);}
+  .btn-primary:disabled{background:#a9a397;cursor:default;}
+  .login-error{
+    display:none;
+    background:#fbeae5;
+    color:var(--danger);
+    font-size:12.5px;
+    padding:10px 12px;
+    border-radius:7px;
+    margin-bottom:16px;
+    line-height:1.5;
+  }
+  .login-error.show{display:block;}
+
+  /* ---------- 検索画面ヘッダー ---------- */
+  .app-header{
+    position:sticky;top:0;z-index:10;
+    background:var(--moss-deep);
+    color:#fff;
+    padding:14px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .app-header .title-group{display:flex;align-items:center;gap:9px;}
+  .app-header h2{
+    font-size:15px;
+    font-weight:700;
+    margin:0;
+    letter-spacing:0.02em;
+  }
+  .app-header .staff-name{
+    font-size:11px;
+    opacity:0.75;
+    margin-top:1px;
+  }
+  .logout-btn{
+    background:rgba(255,255,255,0.12);
+    border:none;
+    color:#fff;
+    font-size:12px;
+    padding:7px 12px;
+    border-radius:6px;
+    cursor:pointer;
+  }
+
+  /* ---------- 検索フォームエリア ---------- */
+  .search-panel{
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+    padding:14px 16px 16px;
+  }
+  .keyword-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:10px;
+  }
+  .keyword-row input{
+    flex:1;
+    padding:12px 14px;
+    font-size:15px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    outline:none;
+    background:#fcfbf8;
+  }
+  .keyword-row input:focus{border-color:var(--moss);background:#fff;}
+  .toggle-filters{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:0 14px;
+    font-size:13px;
+    color:var(--moss-deep);
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .filters{
+    display:none;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    padding-top:10px;
+    border-top:1px solid var(--line);
+    margin-top:10px;
+  }
+  .filters.open{display:grid;}
+  .filter-field{display:flex;flex-direction:column;gap:5px;}
+  .filter-field.span2{grid-column:1/3;}
+  .filter-field label{
+    font-size:11px;
+    color:var(--muted);
+    font-weight:600;
+  }
+  .filter-field select,
+  .filter-field input[type="date"]{
+    padding:10px 10px;
+    font-size:14px;
+    border:1px solid var(--line);
+    border-radius:7px;
+    background:#fcfbf8;
+    color:var(--ink);
+  }
+  .date-range{display:flex;align-items:center;gap:6px;}
+  .date-range span{font-size:12px;color:var(--muted);}
+  .filter-actions{
+    grid-column:1/3;
+    display:flex;
+    gap:8px;
+    margin-top:4px;
+  }
+  .btn-search{
+    flex:1;
+    padding:12px;
+    background:var(--moss);
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .btn-clear{
+    padding:12px 16px;
+    background:#fff;
+    color:var(--muted);
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:13px;
+    cursor:pointer;
+  }
+
+  /* ---------- 結果リスト ---------- */
+  .result-meta{
+    padding:12px 16px 6px;
+    font-size:12px;
+    color:var(--muted);
+  }
+  .result-list{
+    flex:1;
+    padding:6px 12px 24px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .result-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:9px;
+    padding:13px 14px;
+    cursor:pointer;
+    transition:border-color .12s;
+  }
+  .result-card:active{border-color:var(--moss);}
+  .result-card .row1{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:5px;
+  }
+  .result-card .store{
+    font-size:15px;
+    font-weight:700;
+    color:var(--ink);
+  }
+  .result-card .date{
+    font-size:12px;
+    color:var(--moss-deep);
+    font-weight:600;
+    background:#eaf0e9;
+    padding:2px 8px;
+    border-radius:5px;
+    white-space:nowrap;
+  }
+  .result-card .manager{
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .result-card .claim-badge{
+    display:inline-block;
+    margin-top:6px;
+    font-size:11px;
+    color:var(--danger);
+    background:#fbeae5;
+    padding:2px 8px;
+    border-radius:5px;
+    font-weight:600;
+  }
+  .empty-state{
+    text-align:center;
+    padding:60px 24px;
+    color:var(--muted);
+  }
+  .empty-state .icon{font-size:34px;margin-bottom:10px;opacity:0.5;}
+  .empty-state p{font-size:13.5px;line-height:1.7;margin:0;}
+  .loading-state{
+    text-align:center;
+    padding:50px 24px;
+    color:var(--muted);
+    font-size:13px;
+  }
+  .spinner{
+    width:22px;height:22px;
+    border:2.5px solid var(--line);
+    border-top-color:var(--moss);
+    border-radius:50%;
+    margin:0 auto 12px;
+    animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---------- 詳細モーダル ---------- */
+  .detail-overlay{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(28,31,26,0.45);
+    z-index:50;
+    justify-content:center;
+    align-items:flex-end;
+  }
+  .detail-overlay.show{display:flex;}
+  .detail-sheet{
+    background:var(--paper);
+    width:100%;
+    max-width:480px;
+    max-height:88vh;
+    border-radius:16px 16px 0 0;
+    display:flex;
+    flex-direction:column;
+    animation:slideUp .22s ease-out;
+  }
+  @keyframes slideUp{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .detail-header{
+    padding:16px 18px 12px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    background:var(--card);
+    border-radius:16px 16px 0 0;
+  }
+  .detail-header .store{
+    font-size:17px;
+    font-weight:700;
+  }
+  .detail-header .date{
+    font-size:12.5px;
+    color:var(--moss-deep);
+    margin-top:3px;
+  }
+  .close-btn{
+    background:#f0ede4;
+    border:none;
+    width:30px;height:30px;
+    border-radius:50%;
+    font-size:16px;
+    color:var(--muted);
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .detail-body{
+    overflow-y:auto;
+    padding:14px 18px 30px;
+  }
+  .detail-group{margin-bottom:18px;}
+  .detail-group .group-title{
+    font-size:11.5px;
+    font-weight:700;
+    color:var(--moss-deep);
+    letter-spacing:0.04em;
+    margin-bottom:8px;
+    padding-bottom:5px;
+    border-bottom:1px solid var(--line);
+  }
+  .detail-row{
+    display:flex;
+    padding:6px 0;
+    font-size:13.5px;
+    border-bottom:1px solid #ece9de;
+    gap:10px;
+  }
+  .detail-row:last-child{border-bottom:none;}
+  .detail-row .k{
+    width:38%;
+    flex-shrink:0;
+    color:var(--muted);
+    font-size:12.5px;
+    padding-top:1px;
+  }
+  .detail-row .v{
+    flex:1;
+    color:var(--ink);
+    line-height:1.6;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+  .detail-row.claim .v{color:var(--danger);font-weight:600;}
+
+  @media (min-width:520px){
+    .login-card{padding:40px 36px 34px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ ログイン画面 ============ -->
+<div id="loginScreen" class="screen active">
+  <div class="login-card">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 21V9L12 3L20 9V21H4Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M9 21V13H15V21" stroke="white" stroke-width="2"/>
+      </svg>
+    </div>
+    <h1>催事記録検索</h1>
+    <p class="sub">社員IDとパスワードでログインしてください。</p>
+
+    <div id="loginError" class="login-error"></div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="staffId">社員ID</label>
+        <input type="text" id="staffId" autocomplete="username" inputmode="text" required>
+      </div>
+      <div class="field">
+        <label for="staffPw">パスワード</label>
+        <input type="password" id="staffPw" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn-primary" id="loginBtn">ログイン</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ 検索画面 ============ -->
+<div id="searchScreen" class="screen">
+  <div class="app-header">
+    <div class="title-group">
+      <div class="brand-mark" style="width:30px;height:30px;">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:15px;height:15px;">
+          <path d="M4 21V9L12 3L20 9V21H4Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M9 21V13H15V21" stroke="white" stroke-width="2"/>
+        </svg>
+      </div>
+      <div>
+        <h2>催事記録検索</h2>
+        <div class="staff-name" id="staffNameLabel"></div>
+      </div>
+    </div>
+    <button class="logout-btn" id="logoutBtn">ログアウト</button>
+  </div>
+
+  <div class="search-panel">
+    <div class="keyword-row">
+      <input type="text" id="keywordInput" placeholder="フリーワード検索（交渉内容・メモなど）">
+      <button class="toggle-filters" id="toggleFiltersBtn">絞り込み</button>
+    </div>
+
+    <div class="filters" id="filtersPanel">
+      <div class="filter-field">
+        <label>店舗名</label>
+        <select id="filterStore"><option value="">すべて</option></select>
+      </div>
+      <div class="filter-field">
+        <label>店長名</label>
+        <select id="filterManager"><option value="">すべて</option></select>
+      </div>
+      <div class="filter-field">
+        <label>スーパー店長名</label>
+        <select id="filterSuperManager"><option value="">すべて</option></select>
+      </div>
+      <div class="filter-field">
+        <label>開催日</label>
+        <div class="date-range">
+          <input type="date" id="filterDateFrom">
+          <span>〜</span>
+          <input type="date" id="filterDateTo">
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button class="btn-search" id="execSearchBtn">この条件で検索</button>
+        <button class="btn-clear" id="clearFiltersBtn">クリア</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="result-meta" id="resultMeta"></div>
+  <div class="result-list" id="resultList"></div>
+</div>
+
+<!-- ============ 詳細モーダル ============ -->
+<div class="detail-overlay" id="detailOverlay">
+  <div class="detail-sheet">
+    <div class="detail-header">
+      <div>
+        <div class="store" id="detailStore"></div>
+        <div class="date" id="detailDate"></div>
+      </div>
+      <button class="close-btn" id="closeDetailBtn">✕</button>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   設定：ここにGASのウェブアプリURLを貼り付けてください
+   ========================================================= */
+const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwZqydB_UR6Rv7UFGIJ-cvVACknVJ4XVwwwVIgKkufjwHpxJXHR20a22BVMOyCXHHigKg/exec';
+
+/* ---------------- 状態管理 ---------------- */
+let state = {
+  token: localStorage.getItem('eventSearchToken') || null,
+  staffName: localStorage.getItem('eventSearchStaffName') || '',
+  results: []
+};
+
+const $ = (id) => document.getElementById(id);
+
+/* ---------------- 初期化 ---------------- */
+window.addEventListener('DOMContentLoaded', () => {
+  if (state.token) {
+    showSearchScreen();
+  }
+});
+
+/* ---------------- API呼び出し共通 ---------------- */
+async function callApi(payload) {
+  const res = await fetch(GAS_API_URL, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (data.sessionExpired) {
+    alert('セッションの有効期限が切れました。再度ログインしてください。');
+    doLogout();
+    throw new Error('session expired');
+  }
+  return data;
+}
+
+/* ---------------- ログイン ---------------- */
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const staffId = $('staffId').value.trim();
+  const password = $('staffPw').value;
+  const errBox = $('loginError');
+  const btn = $('loginBtn');
+
+  errBox.classList.remove('show');
+  btn.disabled = true;
+  btn.textContent = 'ログイン中...';
+
+  try {
+    const data = await callApi({ action: 'login', staffId, password });
+    if (data.success) {
+      state.token = data.token;
+      state.staffName = data.staffName || '';
+      localStorage.setItem('eventSearchToken', state.token);
+      localStorage.setItem('eventSearchStaffName', state.staffName);
+      showSearchScreen();
+    } else {
+      errBox.textContent = data.message || 'ログインに失敗しました。';
+      errBox.classList.add('show');
+    }
+  } catch (err) {
+    errBox.textContent = '通信エラーが発生しました。時間をおいて再度お試しください。';
+    errBox.classList.add('show');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'ログイン';
+  }
+});
+
+function doLogout() {
+  state.token = null;
+  localStorage.removeItem('eventSearchToken');
+  localStorage.removeItem('eventSearchStaffName');
+  $('searchScreen').classList.remove('active');
+  $('loginScreen').classList.add('active');
+  $('staffId').value = '';
+  $('staffPw').value = '';
+}
+$('logoutBtn').addEventListener('click', doLogout);
+
+/* ---------------- 検索画面表示 ---------------- */
+async function showSearchScreen() {
+  $('loginScreen').classList.remove('active');
+  $('searchScreen').classList.add('active');
+  $('staffNameLabel').textContent = state.staffName ? state.staffName + ' さん' : '';
+  await loadOptions();
+  await doSearch();
+}
+
+/* ---------------- 選択肢ロード ---------------- */
+async function loadOptions() {
+  try {
+    const data = await callApi({ action: 'getOptions', token: state.token });
+    if (data.success) {
+      fillSelect('filterStore', data.options.store);
+      fillSelect('filterManager', data.options.manager);
+      fillSelect('filterSuperManager', data.options.superManager);
+    }
+  } catch (err) {
+    // 選択肢取得失敗時もフリーワード検索は使えるよう続行
+  }
+}
+function fillSelect(id, values) {
+  const sel = $(id);
+  values.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    sel.appendChild(opt);
+  });
+}
+
+/* ---------------- 絞り込みパネル開閉 ---------------- */
+$('toggleFiltersBtn').addEventListener('click', () => {
+  $('filtersPanel').classList.toggle('open');
+});
+$('clearFiltersBtn').addEventListener('click', () => {
+  $('filterStore').value = '';
+  $('filterManager').value = '';
+  $('filterSuperManager').value = '';
+  $('filterDateFrom').value = '';
+  $('filterDateTo').value = '';
+  $('keywordInput').value = '';
+  doSearch();
+});
+$('execSearchBtn').addEventListener('click', doSearch);
+
+/* キーワード入力はEnterで検索 */
+$('keywordInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doSearch();
+});
+
+/* ---------------- 検索実行 ---------------- */
+let searchSeq = 0;
+async function doSearch() {
+  const mySeq = ++searchSeq;
+  const listEl = $('resultList');
+  const metaEl = $('resultMeta');
+
+  listEl.innerHTML = `<div class="loading-state"><div class="spinner"></div>検索しています...</div>`;
+  metaEl.textContent = '';
+
+  const filters = {
+    store: $('filterStore').value,
+    manager: $('filterManager').value,
+    superManager: $('filterSuperManager').value,
+    dateFrom: $('filterDateFrom').value,
+    dateTo: $('filterDateTo').value
+  };
+  const keyword = $('keywordInput').value.trim();
+
+  try {
+    const data = await callApi({ action: 'search', token: state.token, filters, keyword });
+    if (mySeq !== searchSeq) return; // 古いリクエストの結果は破棄
+
+    if (!data.success) {
+      listEl.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>${escapeHtml(data.message || '検索に失敗しました。')}</p></div>`;
+      return;
+    }
+
+    state.results = data.results;
+    renderResults(data);
+  } catch (err) {
+    if (mySeq !== searchSeq) return;
+    listEl.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>通信エラーが発生しました。時間をおいて再度お試しください。</p></div>`;
+  }
+}
+
+function renderResults(data) {
+  const listEl = $('resultList');
+  const metaEl = $('resultMeta');
+
+  if (data.results.length === 0) {
+    metaEl.textContent = '';
+    listEl.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>該当する記録が見つかりませんでした。<br>条件を変えて再度検索してください。</p></div>`;
+    return;
+  }
+
+  let metaText = `${data.count}件 ヒット`;
+  if (data.truncated) metaText += `（上位200件を表示中。絞り込みで対象を減らしてください）`;
+  metaEl.textContent = metaText;
+
+  listEl.innerHTML = data.results.map((item, idx) => {
+    const hasClaim = item['過去のクレーム事案'] && String(item['過去のクレーム事案']).trim() !== '';
+    return `
+      <div class="result-card" data-idx="${idx}">
+        <div class="row1">
+          <span class="store">${escapeHtml(item['店舗名'] || '（店舗名未記入）')}</span>
+          <span class="date">${escapeHtml(item['開催日'] || '')}</span>
+        </div>
+        <div class="manager">店長：${escapeHtml(item['店長名'] || '-')}　/　SV：${escapeHtml(item['スーパー店長名'] || '-')}</div>
+        ${hasClaim ? '<span class="claim-badge">過去のクレーム事案あり</span>' : ''}
+      </div>
+    `;
+  }).join('');
+
+  listEl.querySelectorAll('.result-card').forEach(card => {
+    card.addEventListener('click', () => openDetail(parseInt(card.dataset.idx, 10)));
+  });
+}
+
+/* ---------------- 詳細表示 ---------------- */
+const DETAIL_GROUPS = [
+  {
+    title: '基本情報',
+    fields: ['レコード番号','開催日','店舗名','店長名','スーパー店長名','初日の対応者','店長の交渉']
+  },
+  {
+    title: '交渉内容の詳細',
+    fields: ['交渉日付','交渉時間','店長の役職','変更箇所','なぜ','どのように']
+  },
+  {
+    title: '設置・場所情報',
+    fields: ['スペース設置範囲','スペース設置範囲その他','声掛けの場所_サッカー台','声掛けの場所_出入口','声掛けの場所_外','メイン催事場所','メイン催事場所その他','ガラポンの場所','ガラポン場所その他','チラシ配布の場所','チラシ配布の場所その他']
+  },
+  {
+    title: '注意事項・備考',
+    fields: ['過去のクレーム事案','その他備考']
+  },
+  {
+    title: '管理情報',
+    fields: ['作成日時']
+  }
+];
+const LABELS = {
+  'レコード番号':'レコード番号','開催日':'開催日','店舗名':'店舗名','店長名':'店長名（自分の名前）','スーパー店長名':'スーパー店長の名前',
+  '初日の対応者':'初日の対応者（催事責任者）','店長の交渉':'店長（責任者）の交渉',
+  '交渉日付':'交渉日付','交渉時間':'交渉時間','店長の役職':'店長（責任者）の役職','変更箇所':'変更箇所','なぜ':'なぜ','どのように':'どのように',
+  'スペース設置範囲':'スペース（設置範囲）2m×2m','スペース設置範囲その他':'スペース（設置範囲）2m×2m（その他）',
+  '声掛けの場所_サッカー台':'声掛けの場所（サッカー台）','声掛けの場所_出入口':'声掛けの場所（出入口）','声掛けの場所_外':'声掛けの場所（外）',
+  'メイン催事場所':'メイン催事場所','メイン催事場所その他':'メイン催事場所（その他）',
+  'ガラポンの場所':'ガラポンの場所','ガラポン場所その他':'ガラポン場所（その他）',
+  'チラシ配布の場所':'チラシ配布の場所','チラシ配布の場所その他':'チラシ配布の場所（その他）',
+  '過去のクレーム事案':'過去のクレーム事案（注意事項）','その他備考':'その他備考',
+  '作成日時':'作成日時'
+};
+
+function openDetail(idx) {
+  const item = state.results[idx];
+  if (!item) return;
+
+  $('detailStore').textContent = item['店舗名'] || '（店舗名未記入）';
+  $('detailDate').textContent = item['開催日'] || '';
+
+  let html = '';
+  DETAIL_GROUPS.forEach(group => {
+    const rows = group.fields
+      .filter(f => item[f] !== undefined && item[f] !== '' && item[f] !== null)
+      .map(f => {
+        const isClaim = f === '過去のクレーム事案';
+        return `<div class="detail-row ${isClaim ? 'claim' : ''}">
+          <div class="k">${escapeHtml(LABELS[f] || f)}</div>
+          <div class="v">${escapeHtml(String(item[f]))}</div>
+        </div>`;
+      }).join('');
+    if (rows) {
+      html += `<div class="detail-group"><div class="group-title">${group.title}</div>${rows}</div>`;
+    }
+  });
+
+  $('detailBody').innerHTML = html || '<p style="color:var(--muted);font-size:13px;">表示できる詳細情報がありません。</p>';
+  $('detailOverlay').classList.add('show');
+}
+$('closeDetailBtn').addEventListener('click', () => $('detailOverlay').classList.remove('show'));
+$('detailOverlay').addEventListener('click', (e) => {
+  if (e.target === $('detailOverlay')) $('detailOverlay').classList.remove('show');
+});
+
+/* ---------------- ユーティリティ ---------------- */
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
