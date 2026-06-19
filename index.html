@@ -549,7 +549,7 @@ function renderResults(data, page) {
   state.currentPage = Math.min(Math.max(1, page || 1), totalPages);
 
   let metaText = `<span class="count">${data.count}件 ヒット</span>`;
-  if (data.truncated) metaText += `（上位200件を表示中。検索ワードを増やして対象を減らしてください）`;
+  if (data.truncated) metaText += `（上位200件を表示中。）`;
   metaText += `<span class="order-note">検索結果は新着順（最新→過去）です。</span>`;
   metaEl.innerHTML = metaText;
 
