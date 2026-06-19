@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>【検索ページ】事前確認チェックシート</title>
+<title>【検索用】事前確認チェックシート</title>
 <style>
   :root{
     --ink:#1c1f1a;
@@ -176,12 +176,10 @@
     padding:14px 16px 16px;
   }
   .keyword-row{
-    display:flex;
-    gap:8px;
     margin-bottom:10px;
   }
   .keyword-row input{
-    flex:1;
+    width:100%;
     padding:12px 14px;
     font-size:15px;
     border:1px solid var(--line);
@@ -190,26 +188,14 @@
     background:#fcfbf8;
   }
   .keyword-row input:focus{border-color:var(--moss);background:#fff;}
-  .toggle-filters{
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:8px;
-    padding:0 14px;
-    font-size:13px;
-    color:var(--moss-deep);
-    font-weight:600;
-    cursor:pointer;
-    white-space:nowrap;
-  }
   .filters{
-    display:none;
+    display:grid;
     grid-template-columns:1fr 1fr;
     gap:10px;
     padding-top:10px;
     border-top:1px solid var(--line);
     margin-top:10px;
   }
-  .filters.open{display:grid;}
   .filter-field{display:flex;flex-direction:column;gap:5px;}
   .filter-field.span2{grid-column:1/3;}
   .filter-field label{
@@ -352,7 +338,7 @@
         <path d="M19.5 19.5L15.2 15.2" stroke="white" stroke-width="2" stroke-linecap="round"/>
       </svg>
     </div>
-    <h1>【検索ページ】<br>事前確認チェックシート</h1>
+    <h1>【検索用】<br>事前確認チェックシート</h1>
     <p class="sub">社員IDとパスワードでログインしてください。</p>
 
     <div id="loginError" class="login-error"></div>
@@ -382,7 +368,7 @@
         </svg>
       </div>
       <div class="title-text">
-        <h2>【検索ページ】事前確認チェックシート</h2>
+        <h2>【検索用】事前確認チェックシート</h2>
         <div class="staff-name" id="staffNameLabel"></div>
       </div>
     </div>
@@ -392,7 +378,6 @@
   <div class="search-panel">
     <div class="keyword-row">
       <input type="text" id="keywordInput" placeholder="フリーワード検索（交渉内容・メモなど）">
-      <button class="toggle-filters" id="toggleFiltersBtn">絞り込み</button>
     </div>
 
     <div class="filters" id="filtersPanel">
@@ -417,7 +402,7 @@
         </div>
       </div>
       <div class="filter-actions">
-        <button class="btn-search" id="execSearchBtn">この条件で検索</button>
+        <button class="btn-search" id="execSearchBtn">検索</button>
         <button class="btn-clear" id="clearFiltersBtn">クリア</button>
       </div>
     </div>
@@ -540,10 +525,7 @@ function fillSelect(id, values) {
   });
 }
 
-/* ---------------- 絞り込みパネル開閉 ---------------- */
-$('toggleFiltersBtn').addEventListener('click', () => {
-  $('filtersPanel').classList.toggle('open');
-});
+/* ---------------- クリア ---------------- */
 $('clearFiltersBtn').addEventListener('click', () => {
   $('filterStore').value = '';
   $('filterManager').value = '';
