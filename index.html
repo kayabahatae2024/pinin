@@ -487,7 +487,7 @@ function renderResults(data) {
     return;
   }
 
-  let metaText = `${data.count}件 ヒット`;
+  let metaText = `${data.count}件 ヒット　検索結果は新着順（最新→過去）です。`;
   if (data.truncated) metaText += `（上位200件を表示中。絞り込みで対象を減らしてください）`;
   metaEl.textContent = metaText;
 
