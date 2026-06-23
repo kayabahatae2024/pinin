@@ -95,6 +95,29 @@
     transition:border-color .15s;
   }
   .field input:focus{border-color:var(--moss);background:#fff;}
+  .pw-wrap{
+    position:relative;
+    display:flex;
+    align-items:center;
+  }
+  .pw-wrap input{
+    flex:1;
+    padding-right:46px; /* ボタン分の余白 */
+  }
+  .pw-toggle{
+    position:absolute;
+    right:12px;
+    background:none;
+    border:none;
+    cursor:pointer;
+    padding:4px;
+    color:var(--muted);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .pw-toggle svg{width:20px;height:20px;}
   .btn-primary{
     width:100%;
     padding:14px;
@@ -352,7 +375,20 @@
       </div>
       <div class="field">
         <label for="staffPw">パスワード</label>
-        <input type="password" id="staffPw" autocomplete="current-password" required>
+        <div class="pw-wrap">
+          <input type="password" id="staffPw" autocomplete="current-password" required>
+          <button type="button" class="pw-toggle" id="pwToggle" aria-label="パスワードを表示">
+            <!-- 目アイコン（非表示状態） -->
+            <svg id="iconEye" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <!-- 目に斜線アイコン（表示状態） -->
+            <svg id="iconEyeOff" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:none;">
+              <path d="M17.94 17.94A10.07 10.07 0 0112 20C5 20 1 12 1 12A18.45 18.45 0 015.06 5.06M9.9 4.24A9.12 9.12 0 0112 4C19 4 23 12 23 12A18.5 18.5 0 0120.38 16M3 3L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <button type="submit" class="btn-primary" id="loginBtn">ログイン</button>
     </form>
@@ -461,6 +497,31 @@ $('loginForm').addEventListener('submit', async (e) => {
   }
 });
 
+/* ---------------- パスワード表示切り替え ---------------- */
+$('pwToggle').addEventListener('click', () => {
+  const input = $('staffPw');
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+  $('iconEye').style.display = isHidden ? 'none' : '';
+  $('iconEyeOff').style.display = isHidden ? '' : 'none';
+});
+
+/* ---------------- キーボード表示時にPW欄が隠れないようにする ---------------- */
+// iOSのSafariではvisualViewportでキーボード高さを検知できる
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    const loginScreen = $('loginScreen');
+    if (!loginScreen.classList.contains('active')) return;
+    const viewportHeight = window.visualViewport.height;
+    const focused = document.activeElement;
+    if (!focused || (focused.id !== 'staffId' && focused.id !== 'staffPw')) return;
+    // フォーカスした要素の下端がビューポートに入るよう、少し上にスクロール
+    setTimeout(() => {
+      focused.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  });
+}
+
 function doLogout() {
   state.token = null;
   localStorage.removeItem('eventSearchToken');
@@ -469,6 +530,10 @@ function doLogout() {
   $('loginScreen').classList.add('active');
   $('staffId').value = '';
   $('staffPw').value = '';
+  // パスワードを非表示状態に戻す
+  $('staffPw').type = 'password';
+  $('iconEye').style.display = '';
+  $('iconEyeOff').style.display = 'none';
 }
 $('logoutBtn').addEventListener('click', doLogout);
 
@@ -549,7 +614,7 @@ function renderResults(data, page) {
   state.currentPage = Math.min(Math.max(1, page || 1), totalPages);
 
   let metaText = `<span class="count">${data.count}件 ヒット</span>`;
-  if (data.truncated) metaText += `（上位200件を表示中。）`;
+  if (data.truncated) metaText += `（上位200件を表示中。検索ワードを増やして対象を減らしてください）`;
   metaText += `<span class="order-note">検索結果は新着順（最新→過去）です。</span>`;
   metaEl.innerHTML = metaText;
 
