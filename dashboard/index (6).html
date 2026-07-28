@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>売上ダッシュボード</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__title">
+    <span class="topbar__eyebrow">SALES DASHBOARD</span>
+    <h1>売上・成約 集計ダッシュボード</h1>
+  </div>
+  <div class="topbar__sync">
+    <span id="updatedAt" class="topbar__updated">未取得</span>
+    <button id="syncBtn" class="btn btn--primary">
+      <span class="btn__label">最新データを取得</span>
+      <span class="btn__spinner" hidden></span>
+    </button>
+  </div>
+</header>
+
+<div id="errorBanner" class="banner banner--error" hidden></div>
+
+<main class="layout">
+
+  <!-- フィルタ -->
+  <section class="panel filters" aria-label="絞り込み条件">
+    <div class="field">
+      <label for="dateFrom">日付（開始）</label>
+      <input type="date" id="dateFrom">
+    </div>
+    <div class="field">
+      <label for="dateTo">日付（終了）</label>
+      <input type="date" id="dateTo">
+    </div>
+    <div class="field">
+      <label for="chukaiSelect">仲介</label>
+      <select id="chukaiSelect">
+        <option value="">すべて</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="brandInput">屋号</label>
+      <input type="text" id="brandInput" list="brandList" placeholder="屋号を入力" autocomplete="off">
+      <datalist id="brandList"></datalist>
+    </div>
+    <div class="field">
+      <label for="shopInput">店舗名</label>
+      <input type="text" id="shopInput" list="shopList" placeholder="店舗名を入力" autocomplete="off">
+      <datalist id="shopList"></datalist>
+    </div>
+    <div class="field">
+      <label for="chihouInput">地方</label>
+      <input type="text" id="chihouInput" list="chihouList" placeholder="地方を入力" autocomplete="off">
+      <datalist id="chihouList"></datalist>
+    </div>
+    <div class="field">
+      <label for="prefInput">都道府県</label>
+      <input type="text" id="prefInput" list="prefList" placeholder="都道府県を入力" autocomplete="off">
+      <datalist id="prefList"></datalist>
+    </div>
+    <div class="field field--checkbox">
+      <label class="checkbox">
+        <input type="checkbox" id="excludeNg">
+        <span>NG店舗を除外する</span>
+      </label>
+    </div>
+    <div class="field field--reset">
+      <button id="resetBtn" class="btn btn--ghost">条件をクリア</button>
+    </div>
+  </section>
+
+  <!-- KPI -->
+  <section class="kpis" aria-label="集計結果">
+    <div class="kpi">
+      <span class="kpi__label">売上（見込み利益）合計</span>
+      <span class="kpi__value" id="kpiSales">¥0</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi__label">BP件数</span>
+      <span class="kpi__value" id="kpiBp">0</span>
+      <span class="kpi__note">1件 = 1カウント</span>
+    </div>
+    <div class="kpi kpi--accent">
+      <span class="kpi__label">成約数</span>
+      <span class="kpi__value" id="kpiSeiyaku">0</span>
+      <span class="kpi__note" id="kpiSeiyakuRate">成約率 —</span>
+    </div>
+    <div class="kpi kpi--muted">
+      <span class="kpi__label">該当件数</span>
+      <span class="kpi__value" id="kpiCount">0</span>
+      <span class="kpi__note">現在の絞り込み条件</span>
+    </div>
+  </section>
+
+  <!-- タブ -->
+  <div class="tabs" role="tablist">
+    <button class="tab is-active" data-tab="group" role="tab">店舗別集計</button>
+    <button class="tab" data-tab="raw" role="tab">明細データ</button>
+  </div>
+
+  <!-- 店舗別集計テーブル -->
+  <section class="panel table-panel" id="groupPanel">
+    <div class="table-scroll">
+      <table id="groupTable">
+        <thead>
+          <tr>
+            <th data-sort="chihou">地方</th>
+            <th data-sort="pref">都道府県</th>
+            <th data-sort="brand">屋号</th>
+            <th data-sort="shop">店舗名</th>
+            <th data-sort="sales" class="is-sortable is-sorted-desc">売上合計</th>
+            <th data-sort="bp" class="is-sortable">BP</th>
+            <th data-sort="seiyaku" class="is-sortable">成約数</th>
+          </tr>
+        </thead>
+        <tbody id="groupTbody"></tbody>
+      </table>
+    </div>
+    <p class="table-empty" id="groupEmpty" hidden>該当するデータがありません。</p>
+  </section>
+
+  <!-- 明細データテーブル -->
+  <section class="panel table-panel" id="rawPanel" hidden>
+    <div class="table-scroll">
+      <table id="rawTable">
+        <thead>
+          <tr>
+            <th data-sort="date">日付</th>
+            <th data-sort="chihou">地方</th>
+            <th data-sort="pref">都道府県</th>
+            <th data-sort="brand">屋号</th>
+            <th data-sort="shop">店舗名</th>
+            <th data-sort="chukai">仲介</th>
+            <th data-sort="sales" class="is-sortable is-sorted-desc">売上</th>
+            <th data-sort="seiyaku">成約</th>
+          </tr>
+        </thead>
+        <tbody id="rawTbody"></tbody>
+      </table>
+    </div>
+    <p class="table-empty" id="rawEmpty" hidden>該当するデータがありません。</p>
+    <div class="pagination" id="pagination">
+      <button id="prevPage" class="btn btn--ghost btn--sm">前へ</button>
+      <span id="pageInfo">-</span>
+      <button id="nextPage" class="btn btn--ghost btn--sm">次へ</button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <p>データは Google スプレッドシートを起点に、更新ボタンを押したタイミングでのみ同期されます。</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
