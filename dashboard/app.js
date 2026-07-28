@@ -119,7 +119,14 @@ async function syncFromSheet() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     allRecords = data.records || [];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ records: allRecords, updatedAt: data.updatedAt }));
+
+    // ブラウザの保存容量を超える場合があるため、保存失敗は無視して処理を続行する
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ records: allRecords, updatedAt: data.updatedAt }));
+    } catch (storageErr) {
+      console.warn('データ量が多いためブラウザへの保存はスキップしました（表示には影響ありません）', storageErr);
+    }
+
     setUpdatedLabel(data.updatedAt);
     afterDataLoaded();
   } catch (err) {
