@@ -4,7 +4,7 @@
  * 1. GAS_URL に、デプロイした Apps Script の Web App URL を設定してください。
  *    （Code.gs をデプロイした後に発行される「.../exec」で終わるURL）
  */
-const GAS_URL = 'ここにGAS Web App の URL を貼り付け'; // 例: https://script.google.com/macros/s/xxxx/exec
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbweiGy31MIM98D3rB_qpq28SUubjOBSPzrtpf9S33Tcyejjt2U0tCvIdIGn6S_gMHL8/exec'; // 例: https://script.google.com/macros/s/xxxx/exec
 
 const STORAGE_KEY = 'dashboard_records_v1';
 const PAGE_SIZE = 50;
