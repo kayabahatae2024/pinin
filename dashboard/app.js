@@ -2,19 +2,83 @@
  * 売上ダッシュボード ロジック
  * ------------------------------------------------------------
  * 1. GAS_URL に、デプロイした Apps Script の Web App URL を設定してください。
- *    （Code.gs をデプロイした後に発行される「.../exec」で終わるURL）
+ *    （DashboardApi.gs をデプロイした後に発行される「.../exec」で終わるURL）
  */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbweiGy31MIM98D3rB_qpq28SUubjOBSPzrtpf9S33Tcyejjt2U0tCvIdIGn6S_gMHL8/exec'; // 例: https://script.google.com/macros/s/xxxx/exec
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbweiGy31MIM98D3rB_qpq28SUubjOBSPzrtpf9S33Tcyejjt2U0tCvIdIGn6S_gMHL8/exec';
 
 const STORAGE_KEY = 'dashboard_records_v1';
-const PAGE_SIZE = 50;
 
 let allRecords = [];      // GASから取得した全レコード
-let filteredRecords = []; // フィルタ後のレコード
+let filteredRecords = []; // フィルタ後のレコード（NG除外チェックの影響を受ける）
 
-let groupSort = { key: 'sales', dir: 'desc' };
-let rawSort = { key: 'sales', dir: 'desc' };
-let rawPage = 1;
+let activeTab = 'date';
+
+// ---------- タブ定義 ----------
+// columns: グループを識別するための表示列（groupKeys に対応する値を先頭から表示）
+// groupKeys: このキーの組み合わせでレコードをグループ化する
+const METRIC_COLUMNS = [
+  { key: 'bp', label: 'BP', type: 'num' },
+  { key: 'sales', label: '売上合計', type: 'currency' },
+  { key: 'avg', label: '売上平均', type: 'currency' },
+  { key: 'seiyaku', label: '成約数', type: 'num' },
+  { key: 'seiyakuRate', label: '成約率', type: 'percent' },
+];
+
+const TAB_DEFS = {
+  date: {
+    label: '日付別',
+    groupKeys: ['date'],
+    columns: [{ key: 'date', label: '日付', type: 'text' }],
+  },
+  chukai: {
+    label: '仲介別',
+    groupKeys: ['chukai'],
+    columns: [{ key: 'chukai', label: '仲介', type: 'text' }],
+  },
+  brand: {
+    label: '屋号別',
+    groupKeys: ['brand'],
+    columns: [{ key: 'brand', label: '屋号', type: 'text' }],
+  },
+  shop: {
+    label: '店舗別',
+    groupKeys: ['shop', 'brand'],
+    columns: [
+      { key: 'chihou', label: '地方', type: 'region' },
+      { key: 'pref', label: '都道府県', type: 'text' },
+      { key: 'brand', label: '屋号', type: 'text' },
+      { key: 'shop', label: '店舗名', type: 'text' },
+    ],
+  },
+  chihou: {
+    label: '地方別',
+    groupKeys: ['chihou'],
+    columns: [{ key: 'chihou', label: '地方', type: 'region' }],
+  },
+  pref: {
+    label: '都道府県別',
+    groupKeys: ['pref'],
+    columns: [
+      { key: 'chihou', label: '地方', type: 'region' },
+      { key: 'pref', label: '都道府県', type: 'text' },
+    ],
+  },
+  ng: {
+    label: 'NG店舗一覧',
+    groupKeys: ['shop', 'brand'],
+    isNgOnly: true, // このタブだけは「NG店舗を除外する」チェックを無視し、NGの店舗のみを表示
+    columns: [
+      { key: 'chihou', label: '地方', type: 'region' },
+      { key: 'pref', label: '都道府県', type: 'text' },
+      { key: 'brand', label: '屋号', type: 'text' },
+      { key: 'shop', label: '店舗名', type: 'text' },
+    ],
+  },
+};
+
+// タブごとのソート状態を保持
+const sortState = {};
+Object.keys(TAB_DEFS).forEach(id => { sortState[id] = { key: 'sales', dir: 'desc' }; });
 
 const REGION_COLORS = ['#2F49D1', '#0E8F73', '#C2650B', '#B23A9C', '#0E8FBF', '#B2861F', '#7A5CD6', '#D14F6B'];
 
@@ -40,23 +104,16 @@ const els = {
   prefList: document.getElementById('prefList'),
 
   kpiSales: document.getElementById('kpiSales'),
+  kpiAvgSales: document.getElementById('kpiAvgSales'),
   kpiBp: document.getElementById('kpiBp'),
   kpiSeiyaku: document.getElementById('kpiSeiyaku'),
   kpiSeiyakuRate: document.getElementById('kpiSeiyakuRate'),
   kpiCount: document.getElementById('kpiCount'),
 
-  groupTbody: document.getElementById('groupTbody'),
-  groupEmpty: document.getElementById('groupEmpty'),
-  rawTbody: document.getElementById('rawTbody'),
-  rawEmpty: document.getElementById('rawEmpty'),
-
-  groupPanel: document.getElementById('groupPanel'),
-  rawPanel: document.getElementById('rawPanel'),
   tabs: document.querySelectorAll('.tab'),
-
-  prevPage: document.getElementById('prevPage'),
-  nextPage: document.getElementById('nextPage'),
-  pageInfo: document.getElementById('pageInfo'),
+  tableHead: document.getElementById('tableHead'),
+  tableBody: document.getElementById('tableBody'),
+  tableEmpty: document.getElementById('tableEmpty'),
 };
 
 // ---------- Init ----------
@@ -79,17 +136,7 @@ function bindEvents() {
   );
   els.excludeNg.addEventListener('change', applyFilters);
 
-  document.querySelectorAll('#groupTable thead th[data-sort]').forEach(th => {
-    th.addEventListener('click', () => onSortClick(th, 'group'));
-  });
-  document.querySelectorAll('#rawTable thead th[data-sort]').forEach(th => {
-    th.addEventListener('click', () => onSortClick(th, 'raw'));
-  });
-
   els.tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
-
-  els.prevPage.addEventListener('click', () => { rawPage--; renderRawTable(); });
-  els.nextPage.addEventListener('click', () => { rawPage++; renderRawTable(); });
 }
 
 // ---------- Data sync ----------
@@ -108,7 +155,7 @@ function loadFromCache() {
 }
 
 async function syncFromSheet() {
-  if (GAS_URL.includes('ここに')) {
+  if (!GAS_URL || GAS_URL.includes('ここに')) {
     showError('GAS_URL が未設定です。app.js の GAS_URL に、デプロイしたApps ScriptのURLを貼り付けてください。');
     return;
   }
@@ -181,17 +228,20 @@ function fillDatalist(listEl, values) {
 
 // ---------- Filtering ----------
 
-function applyFilters() {
-  const from = els.dateFrom.value;       // yyyy-mm-dd or ''
+/**
+ * @param {boolean} ignoreExcludeNg trueの場合「NG店舗を除外する」チェックを無視する（NG店舗一覧タブ用）
+ */
+function getBaseFiltered(ignoreExcludeNg) {
+  const from = els.dateFrom.value;
   const to = els.dateTo.value;
   const chukai = els.chukaiSelect.value.trim();
   const brand = els.brandInput.value.trim();
   const shop = els.shopInput.value.trim();
   const chihou = els.chihouInput.value.trim();
   const pref = els.prefInput.value.trim();
-  const excludeNg = els.excludeNg.checked;
+  const excludeNg = !ignoreExcludeNg && els.excludeNg.checked;
 
-  filteredRecords = allRecords.filter(r => {
+  return allRecords.filter(r => {
     if (from && (!r.date || r.date < from)) return false;
     if (to && (!r.date || r.date > to)) return false;
     if (chukai && r.chukai !== chukai) return false;
@@ -202,11 +252,6 @@ function applyFilters() {
     if (excludeNg && isNgShop(r.ngShop)) return false;
     return true;
   });
-
-  rawPage = 1;
-  renderKpis();
-  renderGroupTable();
-  renderRawTable();
 }
 
 function containsText(value, query) {
@@ -231,6 +276,12 @@ function resetFilters() {
   applyFilters();
 }
 
+function applyFilters() {
+  filteredRecords = getBaseFiltered(false);
+  renderKpis();
+  renderTable();
+}
+
 // ---------- KPI ----------
 
 function renderKpis() {
@@ -238,125 +289,121 @@ function renderKpis() {
   const bp = filteredRecords.length;
   const seiyaku = filteredRecords.filter(r => r.seiyaku).length;
   const rate = bp > 0 ? (seiyaku / bp * 100) : 0;
+  const avgSales = bp > 0 ? totalSales / bp : 0;
 
-  els.kpiSales.textContent = '¥' + Math.round(totalSales).toLocaleString('ja-JP');
+  els.kpiSales.textContent = formatCurrency(totalSales);
+  els.kpiAvgSales.textContent = formatCurrency(avgSales);
   els.kpiBp.textContent = bp.toLocaleString('ja-JP');
   els.kpiSeiyaku.textContent = seiyaku.toLocaleString('ja-JP');
   els.kpiSeiyakuRate.textContent = bp > 0 ? `成約率 ${rate.toFixed(1)}%` : '成約率 —';
   els.kpiCount.textContent = bp.toLocaleString('ja-JP');
 }
 
-// ---------- 店舗別集計テーブル ----------
+// ---------- グループ集計 ----------
 
-function buildGroups() {
+function buildGroups(records, tabDef) {
   const map = new Map();
-  for (const r of filteredRecords) {
-    const key = r.shop + '__' + r.brand;
+  for (const r of records) {
+    const key = tabDef.groupKeys.map(k => r[k]).join('__');
     if (!map.has(key)) {
-      map.set(key, {
-        shop: r.shop, brand: r.brand, pref: r.pref, chihou: r.chihou,
-        sales: 0, bp: 0, seiyaku: 0
-      });
+      const labelFields = {};
+      tabDef.columns.forEach(col => { labelFields[col.key] = r[col.key]; });
+      map.set(key, { ...labelFields, sales: 0, bp: 0, seiyaku: 0 });
     }
     const g = map.get(key);
     g.sales += r.sales || 0;
     g.bp += 1;
     if (r.seiyaku) g.seiyaku += 1;
   }
-  return [...map.values()];
+  return [...map.values()].map(g => ({
+    ...g,
+    avg: g.bp > 0 ? g.sales / g.bp : 0,
+    seiyakuRate: g.bp > 0 ? (g.seiyaku / g.bp * 100) : 0,
+  }));
 }
 
-function renderGroupTable() {
-  const groups = buildGroups();
-  sortRows(groups, groupSort);
+// ---------- テーブル描画（タブ共通） ----------
 
-  els.groupTbody.innerHTML = groups.map(g => `
-    <tr>
-      <td class="region-cell" style="--region-color:${regionColor(g.chihou)}">${escapeHtml(g.chihou || '—')}</td>
-      <td>${escapeHtml(g.pref || '—')}</td>
-      <td>${escapeHtml(g.brand || '—')}</td>
-      <td>${escapeHtml(g.shop || '—')}</td>
-      <td class="num">¥${Math.round(g.sales).toLocaleString('ja-JP')}</td>
-      <td class="num">${g.bp.toLocaleString('ja-JP')}</td>
-      <td class="num">${g.seiyaku.toLocaleString('ja-JP')}</td>
-    </tr>
-  `).join('');
+function renderTable() {
+  const tabDef = TAB_DEFS[activeTab];
+  const sourceRecords = tabDef.isNgOnly
+    ? getBaseFiltered(true).filter(r => isNgShop(r.ngShop))
+    : filteredRecords;
 
-  els.groupEmpty.hidden = groups.length > 0;
+  const groups = buildGroups(sourceRecords, tabDef);
+  const allColumns = [...tabDef.columns, ...METRIC_COLUMNS];
+  const state = sortState[activeTab];
+  sortRows(groups, state);
+
+  // ヘッダー描画
+  els.tableHead.innerHTML = '<tr>' + allColumns.map(col => {
+    const isSortable = col.type !== 'region' || true; // 全列ソート可能
+    const sortedClass = state.key === col.key ? (state.dir === 'desc' ? 'is-sorted-desc' : 'is-sorted-asc') : '';
+    return `<th data-key="${col.key}" class="is-sortable ${sortedClass}">${escapeHtml(col.label)}</th>`;
+  }).join('') + '</tr>';
+
+  els.tableHead.querySelectorAll('th').forEach(th => {
+    th.addEventListener('click', () => onSortClick(th.dataset.key));
+  });
+
+  // ボディ描画
+  els.tableBody.innerHTML = groups.map(g => {
+    return '<tr>' + allColumns.map(col => renderCell(col, g)).join('') + '</tr>';
+  }).join('');
+
+  els.tableEmpty.hidden = groups.length > 0;
 }
 
-// ---------- 明細データテーブル ----------
-
-function renderRawTable() {
-  const rows = [...filteredRecords];
-  sortRows(rows, rawSort);
-
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  rawPage = Math.min(Math.max(1, rawPage), totalPages);
-  const start = (rawPage - 1) * PAGE_SIZE;
-  const pageRows = rows.slice(start, start + PAGE_SIZE);
-
-  els.rawTbody.innerHTML = pageRows.map(r => `
-    <tr>
-      <td>${escapeHtml(r.date || '—')}</td>
-      <td class="region-cell" style="--region-color:${regionColor(r.chihou)}">${escapeHtml(r.chihou || '—')}</td>
-      <td>${escapeHtml(r.pref || '—')}</td>
-      <td>${escapeHtml(r.brand || '—')}</td>
-      <td>${escapeHtml(r.shop || '—')}</td>
-      <td>${escapeHtml(r.chukai || '—')}</td>
-      <td class="num">¥${Math.round(r.sales).toLocaleString('ja-JP')}</td>
-      <td>${r.seiyaku ? '<span class="tag-seiyaku">成約</span>' : '<span class="tag-seiyaku tag-seiyaku--off">未成約</span>'}</td>
-    </tr>
-  `).join('');
-
-  els.rawEmpty.hidden = rows.length > 0;
-  els.pageInfo.textContent = `${rawPage} / ${totalPages} ページ（全 ${rows.length.toLocaleString('ja-JP')} 件）`;
-  els.prevPage.disabled = rawPage <= 1;
-  els.nextPage.disabled = rawPage >= totalPages;
+function renderCell(col, row) {
+  const value = row[col.key];
+  switch (col.type) {
+    case 'region':
+      return `<td class="region-cell" style="--region-color:${regionColor(value)}">${escapeHtml(value || '—')}</td>`;
+    case 'currency':
+      return `<td class="num">${formatCurrency(value)}</td>`;
+    case 'percent':
+      return `<td class="num">${(value || 0).toFixed(1)}%</td>`;
+    case 'num':
+      return `<td class="num">${(value || 0).toLocaleString('ja-JP')}</td>`;
+    default:
+      return `<td>${escapeHtml(value || '—')}</td>`;
+  }
 }
 
-// ---------- Sorting ----------
-
-function sortRows(rows, sortState) {
-  const { key, dir } = sortState;
+function sortRows(rows, state) {
+  const { key, dir } = state;
   const mult = dir === 'asc' ? 1 : -1;
   rows.sort((a, b) => {
     const va = a[key], vb = b[key];
     if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * mult;
-    if (typeof va === 'boolean' && typeof vb === 'boolean') return ((va === vb) ? 0 : va ? 1 : -1) * mult;
     return String(va || '').localeCompare(String(vb || ''), 'ja') * mult;
   });
 }
 
-function onSortClick(th, tableType) {
-  const key = th.dataset.sort;
-  const state = tableType === 'group' ? groupSort : rawSort;
-  const tableId = tableType === 'group' ? '#groupTable' : '#rawTable';
-
+function onSortClick(key) {
+  const state = sortState[activeTab];
   if (state.key === key) {
     state.dir = state.dir === 'desc' ? 'asc' : 'desc';
   } else {
     state.key = key;
     state.dir = 'desc';
   }
-
-  document.querySelectorAll(`${tableId} thead th`).forEach(el => {
-    el.classList.remove('is-sorted-desc', 'is-sorted-asc');
-  });
-  th.classList.add(state.dir === 'desc' ? 'is-sorted-desc' : 'is-sorted-asc');
-
-  if (tableType === 'group') renderGroupTable(); else renderRawTable();
+  renderTable();
 }
 
 // ---------- Tabs ----------
 
-function switchTab(tabName) {
-  els.tabs.forEach(t => t.classList.toggle('is-active', t.dataset.tab === tabName));
-  els.groupPanel.hidden = tabName !== 'group';
-  els.rawPanel.hidden = tabName !== 'raw';
+function switchTab(tabId) {
+  activeTab = tabId;
+  els.tabs.forEach(t => t.classList.toggle('is-active', t.dataset.tab === tabId));
+  renderTable();
 }
 
 // ---------- Utils ----------
+
+function formatCurrency(num) {
+  return '¥' + Math.round(num || 0).toLocaleString('ja-JP');
+}
 
 function regionColor(name) {
   if (!name) return 'var(--line-strong)';
