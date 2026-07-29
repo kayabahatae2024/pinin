@@ -153,11 +153,51 @@ button, input, select {
 /* ---------- Filters ---------- */
 
 .filters {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
   padding: 20px;
 }
+
+.filter-group {
+  flex: 1 1 240px;
+  min-width: 220px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px 14px;
+  background: #FBFBFD;
+}
+
+.filter-group--actions {
+  flex: 1 1 100%;
+  background: transparent;
+  border: none;
+  padding: 4px 0 0;
+}
+
+.filter-group__title {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.filter-group__row {
+  display: flex;
+  gap: 12px;
+}
+
+.filter-group__row--actions {
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.field { flex: 1 1 0; min-width: 0; }
+.field--wide { flex: 1 1 100%; }
 
 .field label {
   display: block;
@@ -175,7 +215,7 @@ button, input, select {
   padding: 9px 12px;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
-  background: #FBFBFD;
+  background: #fff;
   font-size: 13px;
   color: var(--ink);
 }
@@ -186,25 +226,22 @@ button, input, select {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-.field--checkbox { display: flex; align-items: flex-end; }
 .checkbox {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
+  font-weight: 700;
   color: var(--ink-soft);
   cursor: pointer;
 }
 .checkbox input { width: 16px; height: 16px; accent-color: var(--accent); }
 
-.field--reset { display: flex; align-items: flex-end; }
-.field--reset .btn { width: 100%; justify-content: center; }
-
 /* ---------- KPI ---------- */
 
 .kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 14px;
 }
 
@@ -227,7 +264,7 @@ button, input, select {
 .kpi__value {
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 26px;
+  font-size: 24px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -248,24 +285,30 @@ button, input, select {
 
 .tabs {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 6px 18px;
   border-bottom: 1px solid var(--line);
 }
 
 .tab {
   background: none;
   border: none;
-  padding: 10px 6px;
+  padding: 10px 2px;
   font-size: 13px;
   font-weight: 700;
   color: var(--ink-soft);
   cursor: pointer;
   position: relative;
   top: 1px;
+  white-space: nowrap;
 }
 .tab.is-active {
   color: var(--accent);
   border-bottom: 2px solid var(--accent);
+}
+.tab--warn.is-active {
+  color: var(--warn);
+  border-bottom-color: var(--warn);
 }
 
 /* ---------- Table ---------- */
@@ -334,36 +377,11 @@ td.region-cell::before {
   background: var(--region-color, var(--line-strong));
 }
 
-.tag-seiyaku {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  background: var(--positive-soft);
-  color: var(--positive);
-}
-.tag-seiyaku--off {
-  background: #F1F1F5;
-  color: var(--ink-soft);
-}
-
 .table-empty {
   text-align: center;
   padding: 40px 20px;
   color: var(--ink-soft);
   font-size: 13px;
-}
-
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 14px 0 6px;
-  font-size: 12px;
-  color: var(--ink-soft);
-  font-family: var(--font-mono);
 }
 
 /* ---------- Footer ---------- */
@@ -379,15 +397,14 @@ td.region-cell::before {
 /* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {
-  .filters { grid-template-columns: repeat(2, 1fr); }
   .kpis { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 560px) {
-  .filters { grid-template-columns: 1fr; }
   .kpis { grid-template-columns: 1fr; }
   .topbar { padding: 16px; }
   .layout { padding: 16px; }
+  .filter-group__row { flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {
