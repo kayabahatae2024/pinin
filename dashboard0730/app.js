@@ -4,6 +4,67 @@
  * 1. GAS_URL に、デプロイした Apps Script の Web App URL を設定してください。
  *    （DashboardApi.gs をデプロイした後に発行される「.../exec」で終わるURL）
  */
+
+// ---------- ログイン（簡易的な目隠し。本格的なアクセス制御ではありません） ----------
+const AUTH_ID = 'pinin01';
+const AUTH_PW = 'pinin4321';
+const AUTH_STORAGE_KEY = 'dashboard_auth_v1';
+const AUTH_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 1週間
+
+function isAuthValid() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    return typeof data.expiresAt === 'number' && Date.now() < data.expiresAt;
+  } catch (err) {
+    return false;
+  }
+}
+
+function grantAuth() {
+  try {
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ expiresAt: Date.now() + AUTH_DURATION_MS }));
+  } catch (err) {
+    console.warn('ログイン状態の保存に失敗しました', err);
+  }
+}
+
+function showApp() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+  init();
+}
+
+function showLogin() {
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('appRoot').style.display = 'none';
+}
+
+function bindLoginForm() {
+  const form = document.getElementById('loginForm');
+  const errorEl = document.getElementById('loginError');
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const id = document.getElementById('loginId').value.trim();
+    const pw = document.getElementById('loginPw').value;
+    if (id === AUTH_ID && pw === AUTH_PW) {
+      errorEl.hidden = true;
+      grantAuth();
+      showApp();
+    } else {
+      errorEl.textContent = 'IDまたはパスワードが違います。';
+      errorEl.hidden = false;
+    }
+  });
+}
+
+bindLoginForm();
+if (isAuthValid()) {
+  showApp();
+} else {
+  showLogin();
+}
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbweiGy31MIM98D3rB_qpq28SUubjOBSPzrtpf9S33Tcyejjt2U0tCvIdIGn6S_gMHL8/exec';
 
 const STORAGE_KEY = 'dashboard_records_v1';
@@ -19,18 +80,20 @@ let activeTab = 'date';
 const METRIC_COLUMNS_BASE = [
   { key: 'bp', label: 'BP', type: 'num' },
   { key: 'sales', label: '見込み利益合計', type: 'currency' },
-  { key: 'avg', label: '見込み利益平均', type: 'currency' },
+  { key: 'avg', label: '見込み利益平均(BP)', type: 'currency' },
   { key: 'seiyaku', label: '成約数', type: 'num' },
   { key: 'seiyakuRate', label: '成約率', type: 'percent' },
 ];
 
 const KAISAI_COLUMN = { key: 'kaisai', label: '開催回数', type: 'num' };
+const AVG_PER_KAISAI_COLUMN = { key: 'avgPerKaisai', label: '見込み利益平均(開催回数)', type: 'currency' };
 
-// タブごとの指標列を組み立てる（開催回数は店舗系タブのみ表示）
+// タブごとの指標列を組み立てる（開催回数・開催回数あたり平均は店舗系タブのみ表示）
 function getMetricColumns(tabDef) {
   if (!tabDef.showKaisai) return METRIC_COLUMNS_BASE;
   const cols = [...METRIC_COLUMNS_BASE];
-  cols.splice(1, 0, KAISAI_COLUMN); // BPの右隣に挿入
+  cols.splice(1, 0, KAISAI_COLUMN);           // BPの右隣に「開催回数」
+  cols.splice(4, 0, AVG_PER_KAISAI_COLUMN);   // 見込み利益平均(BP)の右隣に挿入
   return cols;
 }
 
@@ -143,7 +206,7 @@ const els = {
 };
 
 // ---------- Init ----------
-init();
+// ※ init() はログイン成功後（showApp内）で呼び出されます
 
 function init() {
   loadFromCache();
@@ -370,6 +433,7 @@ function buildGroups(records, tabDef) {
     avg: g.bp > 0 ? g.sales / g.bp : 0,
     seiyakuRate: g.bp > 0 ? (g.seiyaku / g.bp * 100) : 0,
     kaisai: g.weekSet.size,
+    avgPerKaisai: g.weekSet.size > 0 ? g.sales / g.weekSet.size : 0,
   }));
 }
 
@@ -382,7 +446,13 @@ function renderTable() {
     : filteredRecords;
 
   const groups = buildGroups(sourceRecords, tabDef);
-  const allColumns = [...tabDef.columns, ...getMetricColumns(tabDef)];
+
+  // 来店要件が絞り込まれている場合、BP列の見出しを「〇〇BP」に変更
+  const raitenValue = els.raitenSelect.value.trim();
+  const bpLabel = raitenValue ? `${raitenValue}BP` : 'BP';
+  const metricColumns = getMetricColumns(tabDef).map(col => col.key === 'bp' ? { ...col, label: bpLabel } : col);
+
+  const allColumns = [...tabDef.columns, ...metricColumns];
   const state = sortState[activeTab];
   sortRows(groups, state);
 
