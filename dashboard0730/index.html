@@ -11,6 +11,28 @@
 </head>
 <body>
 
+<!-- ログイン画面 -->
+<div id="loginOverlay" class="login-overlay">
+  <form id="loginForm" class="login-card">
+    <span class="login-card__eyebrow">PROFIT DASHBOARD</span>
+    <h2>ログイン</h2>
+    <div class="field">
+      <label for="loginId">ID</label>
+      <input type="text" id="loginId" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label for="loginPw">パスワード</label>
+      <input type="password" id="loginPw" autocomplete="current-password" required>
+    </div>
+    <p class="login-card__error" id="loginError" hidden></p>
+    <button type="submit" class="btn btn--primary login-card__submit">ログイン</button>
+    <p class="login-card__note">ID、PWはシステム課へ問い合わせください</p>
+  </form>
+</div>
+
+<!-- ダッシュボード本体（ログイン後に表示） -->
+<div id="appRoot">
+
 <header class="topbar">
   <div class="topbar__title">
     <span class="topbar__eyebrow">PROFIT DASHBOARD</span>
@@ -210,6 +232,7 @@
 <footer class="foot">
   <p>データは Google スプレッドシートを起点に、更新ボタンを押したタイミングでのみ同期されます。「平均（1日あたり）」は、現在の絞り込み条件内に含まれる日数で割った値です。開催回数は、週(AJ列)が重複しないユニーク週数のカウントです。</p>
 </footer>
+</div>
 
 <script src="app.js"></script>
 </body>
