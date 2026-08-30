@@ -59,7 +59,34 @@ function bindLoginForm() {
   });
 }
 
+function bindPwToggle() {
+  const toggleBtn = document.getElementById('togglePw');
+  const pwInput = document.getElementById('loginPw');
+  toggleBtn.addEventListener('click', () => {
+    const isPw = pwInput.type === 'password';
+    pwInput.type = isPw ? 'text' : 'password';
+    toggleBtn.textContent = isPw ? '隠す' : '表示';
+  });
+}
+
+function bindLogout() {
+  const logoutBtn = document.getElementById('logoutBtn');
+  const modal = document.getElementById('logoutModal');
+  const cancelBtn = document.getElementById('logoutCancelBtn');
+  const confirmBtn = document.getElementById('logoutConfirmBtn');
+
+  logoutBtn.addEventListener('click', () => { modal.style.display = 'flex'; });
+  cancelBtn.addEventListener('click', () => { modal.style.display = 'none'; });
+  confirmBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+    try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch (err) { /* noop */ }
+    showLogin();
+  });
+}
+
 bindLoginForm();
+bindPwToggle();
+bindLogout();
 if (isAuthValid()) {
   showApp();
 } else {
@@ -126,7 +153,12 @@ const TAB_DEFS = {
       { key: 'chihou', label: '地方', type: 'region' },
       { key: 'pref', label: '都道府県', type: 'text' },
       { key: 'brand', label: '屋号', type: 'text' },
+      { key: 'shopId', label: '店舗ID', type: 'text' },
       { key: 'shop', label: '店舗名', type: 'text' },
+      { key: 'chukai', label: '仲介', type: 'text' },
+    ],
+    trailingColumns: [
+      { key: 'shopNote', label: '店舗備考(NG理由等)', type: 'text' },
     ],
   },
   chihou: {
@@ -156,7 +188,12 @@ const TAB_DEFS = {
       { key: 'chihou', label: '地方', type: 'region' },
       { key: 'pref', label: '都道府県', type: 'text' },
       { key: 'brand', label: '屋号', type: 'text' },
+      { key: 'shopId', label: '店舗ID', type: 'text' },
       { key: 'shop', label: '店舗名', type: 'text' },
+      { key: 'chukai', label: '仲介', type: 'text' },
+    ],
+    trailingColumns: [
+      { key: 'shopNote', label: '店舗備考(NG理由等)', type: 'text' },
     ],
   },
 };
@@ -415,11 +452,12 @@ function renderKpis() {
 
 function buildGroups(records, tabDef) {
   const map = new Map();
+  const labelColumns = [...tabDef.columns, ...(tabDef.trailingColumns || [])];
   for (const r of records) {
     const key = tabDef.groupKeys.map(k => r[k]).join('__');
     if (!map.has(key)) {
       const labelFields = {};
-      tabDef.columns.forEach(col => { labelFields[col.key] = r[col.key]; });
+      labelColumns.forEach(col => { labelFields[col.key] = r[col.key]; });
       map.set(key, { ...labelFields, sales: 0, bp: 0, seiyaku: 0, weekSet: new Set() });
     }
     const g = map.get(key);
@@ -452,7 +490,7 @@ function renderTable() {
   const bpLabel = raitenValue ? `${raitenValue}BP` : 'BP';
   const metricColumns = getMetricColumns(tabDef).map(col => col.key === 'bp' ? { ...col, label: bpLabel } : col);
 
-  const allColumns = [...tabDef.columns, ...metricColumns];
+  const allColumns = [...tabDef.columns, ...metricColumns, ...(tabDef.trailingColumns || [])];
   const state = sortState[activeTab];
   sortRows(groups, state);
 
