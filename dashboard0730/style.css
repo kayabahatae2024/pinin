@@ -15,6 +15,7 @@
   --font-body: 'Noto Sans JP', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --radius: 10px;
+  --topbar-h: 88px;
 }
 
 * { box-sizing: border-box; }
@@ -135,13 +136,29 @@ button, input, select {
 
 /* ---------- Layout ---------- */
 
-.layout {
-  max-width: 1240px;
+.dashboard-layout {
+  max-width: 1500px;
   margin: 0 auto;
   padding: 24px 28px 60px;
+  display: grid;
+  grid-template-columns: minmax(260px, 25%) 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+.sidebar {
+  position: sticky;
+  top: calc(var(--topbar-h) + 20px);
+  max-height: calc(100vh - var(--topbar-h) - 40px);
+  overflow-y: auto;
+  padding-bottom: 4px;
+}
+
+.main-content {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  min-width: 0;
 }
 
 .panel {
@@ -154,25 +171,25 @@ button, input, select {
 
 .filters {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 14px;
-  padding: 20px;
+  padding: 16px;
 }
 
 .filter-group {
-  flex: 1 1 240px;
-  min-width: 220px;
+  width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px 14px 14px;
   background: #FBFBFD;
 }
 
-.filter-group--wide { flex: 2.4 1 420px; }
-.filter-group--narrow { flex: 1 1 200px; min-width: 180px; }
+.filter-group--wide,
+.filter-group--narrow {
+  width: 100%;
+}
 
 .filter-group--actions {
-  flex: 1 1 100%;
   background: transparent;
   border: none;
   padding: 4px 0 0;
@@ -189,6 +206,7 @@ button, input, select {
 
 .filter-group__row {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -199,9 +217,9 @@ button, input, select {
   gap: 14px;
 }
 
-.field { flex: 1 1 0; min-width: 0; }
+.field { flex: 1 1 110px; min-width: 0; }
 .field--wide { flex: 1 1 100%; }
-.field--grow { flex: 1.6 1 0; }
+.field--grow { flex: 1 1 100%; }
 
 .field label {
   display: block;
@@ -366,7 +384,10 @@ button, input, select {
 
 .table-panel { padding: 4px 4px 12px; }
 
-.table-scroll { overflow-x: auto; }
+.table-scroll {
+  overflow: auto;
+  max-height: calc(100vh - var(--topbar-h) - 60px);
+}
 
 table {
   width: 100%;
@@ -375,6 +396,10 @@ table {
 }
 
 thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel);
   text-align: left;
   font-size: 11px;
   font-weight: 700;
@@ -448,16 +473,18 @@ td.region-cell::before {
 /* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {
+  .dashboard-layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; max-height: none; overflow-y: visible; }
   .kpi-row__cards { grid-template-columns: repeat(2, 1fr); }
+  .table-scroll { max-height: 60vh; }
 }
 
 @media (max-width: 560px) {
   .kpi-row__cards { grid-template-columns: 1fr; }
   .kpi-highlight { flex-direction: column; align-items: flex-start; gap: 4px; }
   .topbar { padding: 16px; }
-  .layout { padding: 16px; }
+  .dashboard-layout { padding: 16px; }
   .filter-group__row { flex-direction: column; }
-  .filter-group--wide, .filter-group--narrow { flex-basis: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -545,4 +572,61 @@ td.region-cell::before {
   text-align: center;
   font-size: 11px;
   color: var(--ink-soft);
+}
+
+.login-pw-wrap { position: relative; }
+.login-pw-wrap input { padding-right: 58px; }
+.login-pw-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.login-pw-toggle:hover { text-decoration: underline; }
+
+/* ---------- Modal ---------- */
+
+.modal-overlay {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 23, 31, 0.45);
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  padding: 20px;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 24px 22px 20px;
+  box-shadow: 0 12px 32px rgba(20, 23, 31, 0.18);
+}
+
+.modal-card h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  margin: 0 0 8px;
+}
+
+.modal-card p {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 0 0 20px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
