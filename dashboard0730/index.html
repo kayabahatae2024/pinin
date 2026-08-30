@@ -22,7 +22,10 @@
     </div>
     <div class="field">
       <label for="loginPw">パスワード</label>
-      <input type="password" id="loginPw" autocomplete="current-password" required>
+      <div class="login-pw-wrap">
+        <input type="password" id="loginPw" autocomplete="current-password" required>
+        <button type="button" id="togglePw" class="login-pw-toggle">表示</button>
+      </div>
     </div>
     <p class="login-card__error" id="loginError" hidden></p>
     <button type="submit" class="btn btn--primary login-card__submit">ログイン</button>
@@ -44,12 +47,28 @@
       <span class="btn__label">最新データを取得</span>
       <span class="btn__spinner" hidden></span>
     </button>
+    <button id="logoutBtn" class="btn btn--ghost btn--sm">ログアウト</button>
   </div>
 </header>
 
+<!-- ログアウト確認モーダル -->
+<div id="logoutModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <h3>ログアウトしますか？</h3>
+    <p>再度利用するには、ID・パスワードの入力が必要になります。</p>
+    <div class="modal-actions">
+      <button id="logoutCancelBtn" class="btn btn--ghost">キャンセル</button>
+      <button id="logoutConfirmBtn" class="btn btn--primary">ログアウト</button>
+    </div>
+  </div>
+</div>
+
 <div id="errorBanner" class="banner banner--error" hidden></div>
 
-<main class="layout">
+<main class="dashboard-layout">
+
+  <!-- サイドバー：検索条件（常に左側に表示） -->
+  <aside class="sidebar">
 
   <!-- フィルタ -->
   <section class="panel filters" aria-label="絞り込み条件">
@@ -149,6 +168,11 @@
 
   </section>
 
+  </aside>
+
+  <!-- メインコンテンツ：件数・表（右側） -->
+  <div class="main-content">
+
   <!-- KPI -->
   <section class="kpis" aria-label="集計結果">
 
@@ -226,6 +250,8 @@
     </div>
     <p class="table-empty" id="tableEmpty" hidden>該当するデータがありません。</p>
   </section>
+
+  </div>
 
 </main>
 
