@@ -43,6 +43,7 @@ function doGet(e) {
       }
       records.push({
         date: dateStr,                         // B 日付
+        managerName: row[5],                   // F 店長名
         shop: shop,                            // C 店舗名
         brand: row[3],                         // D 屋号
         pref: row[4],                          // E 都道府県名
@@ -54,7 +55,8 @@ function doGet(e) {
         ngShop: row[34],                       // AI NG店舗
         week: row[35],                         // AJ 週（月の何週目か）
         shopNote: row[36],                     // AK 店舗備考（NG理由等）
-        shopId: row[37]                        // AL 店舗ID
+        shopId: row[37],                       // AL 店舗ID
+        month: row[38]                         // AM 月
       });
     }
   }
