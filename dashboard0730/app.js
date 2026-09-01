@@ -128,12 +128,23 @@ const TAB_DEFS = {
   date: {
     label: '日付別',
     groupKeys: ['date'],
-    columns: [{ key: 'date', label: '日付', type: 'text' }],
+    columns: [
+      { key: 'date', label: '日付', type: 'text' },
+      { key: 'managerName', label: '店長名', type: 'uniqueList' },
+    ],
   },
   week: {
     label: '週別',
     groupKeys: ['week'],
-    columns: [{ key: 'week', label: '週', type: 'text' }],
+    columns: [
+      { key: 'week', label: '週', type: 'text' },
+      { key: 'managerName', label: '店長名', type: 'uniqueList' },
+    ],
+  },
+  month: {
+    label: '月別',
+    groupKeys: ['month'],
+    columns: [{ key: 'month', label: '月', type: 'text' }],
   },
   chukai: {
     label: '仲介別',
@@ -453,26 +464,45 @@ function renderKpis() {
 function buildGroups(records, tabDef) {
   const map = new Map();
   const labelColumns = [...tabDef.columns, ...(tabDef.trailingColumns || [])];
+  const uniqueListColumns = labelColumns.filter(col => col.type === 'uniqueList');
+  const staticColumns = labelColumns.filter(col => col.type !== 'uniqueList');
+
   for (const r of records) {
     const key = tabDef.groupKeys.map(k => r[k]).join('__');
     if (!map.has(key)) {
       const labelFields = {};
-      labelColumns.forEach(col => { labelFields[col.key] = r[col.key]; });
-      map.set(key, { ...labelFields, sales: 0, bp: 0, seiyaku: 0, weekSet: new Set() });
+      staticColumns.forEach(col => { labelFields[col.key] = r[col.key]; });
+      const uniqueSets = {};
+      uniqueListColumns.forEach(col => { uniqueSets[col.key] = new Set(); });
+      map.set(key, { ...labelFields, _uniqueSets: uniqueSets, sales: 0, bp: 0, seiyaku: 0, weekSet: new Set() });
     }
     const g = map.get(key);
+    uniqueListColumns.forEach(col => {
+      const v = r[col.key];
+      if (v) g._uniqueSets[col.key].add(v);
+    });
     g.sales += r.sales || 0;
     g.bp += 1;
     if (r.seiyaku) g.seiyaku += 1;
     if (r.week) g.weekSet.add(r.week); // 週の重複を除いてカウント（開催回数用）
   }
-  return [...map.values()].map(g => ({
-    ...g,
-    avg: g.bp > 0 ? g.sales / g.bp : 0,
-    seiyakuRate: g.bp > 0 ? (g.seiyaku / g.bp * 100) : 0,
-    kaisai: g.weekSet.size,
-    avgPerKaisai: g.weekSet.size > 0 ? g.sales / g.weekSet.size : 0,
-  }));
+  return [...map.values()].map(g => {
+    const uniqueValues = {};
+    uniqueListColumns.forEach(col => {
+      uniqueValues[col.key] = [...g._uniqueSets[col.key]]
+        .sort((a, b) => String(a).localeCompare(String(b), 'ja'))
+        .join('、');
+    });
+    return {
+      ...g,
+      ...uniqueValues,
+      _uniqueSets: undefined,
+      avg: g.bp > 0 ? g.sales / g.bp : 0,
+      seiyakuRate: g.bp > 0 ? (g.seiyaku / g.bp * 100) : 0,
+      kaisai: g.weekSet.size,
+      avgPerKaisai: g.weekSet.size > 0 ? g.sales / g.weekSet.size : 0,
+    };
+  });
 }
 
 // ---------- テーブル描画（タブ共通） ----------
@@ -484,6 +514,15 @@ function renderTable() {
     : filteredRecords;
 
   const groups = buildGroups(sourceRecords, tabDef);
+
+  // 店長名などのユニーク集計列は、店舗名で絞り込んでいる時だけ値を表示する
+  const shopFilterActive = els.shopInput.value.trim() !== '';
+  if (!shopFilterActive) {
+    const uniqueListKeys = tabDef.columns.filter(col => col.type === 'uniqueList').map(col => col.key);
+    if (uniqueListKeys.length > 0) {
+      groups.forEach(g => { uniqueListKeys.forEach(k => { g[k] = ''; }); });
+    }
+  }
 
   // 来店要件が絞り込まれている場合、BP列の見出しを「〇〇BP」に変更
   const raitenValue = els.raitenSelect.value.trim();
