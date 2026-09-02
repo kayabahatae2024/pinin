@@ -84,9 +84,105 @@ function bindLogout() {
   });
 }
 
+// ---------- CSV出力 ----------
+
+function bindCsvExport() {
+  const csvBtn = document.getElementById('csvBtn');
+  const modal = document.getElementById('csvModal');
+  const cancelBtn = document.getElementById('csvCancelBtn');
+  const confirmBtn = document.getElementById('csvConfirmBtn');
+  const tabLabelEl = document.getElementById('csvModalTabLabel');
+
+  csvBtn.addEventListener('click', () => {
+    tabLabelEl.textContent = TAB_DEFS[activeTab].label;
+    modal.style.display = 'flex';
+  });
+  cancelBtn.addEventListener('click', () => { modal.style.display = 'none'; });
+  confirmBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+    downloadCsv();
+  });
+}
+
+function conditionText(rawValue) {
+  const v = String(rawValue || '').trim();
+  return v ? v : '（指定なし）';
+}
+
+function conditionRangeText(from, to) {
+  if (!from && !to) return '（指定なし）';
+  return `${from || '指定なし'} 〜 ${to || '指定なし'}`;
+}
+
+function buildConditionLines() {
+  const tabDef = TAB_DEFS[activeTab];
+  return [
+    `# 出力日時: ${new Date().toLocaleString('ja-JP')}`,
+    `# タブ: ${tabDef.label}`,
+    `# 期間: ${conditionRangeText(els.dateFrom.value, els.dateTo.value)}`,
+    `# 週: ${conditionText(els.weekSelect.value)}`,
+    `# 仲介: ${conditionText(els.chukaiSelect.value)}`,
+    `# 屋号: ${conditionText(els.brandInput.value)}`,
+    `# 店舗名: ${conditionText(els.shopInput.value)}`,
+    `# 地方: ${conditionText(els.chihouSelect.value)}`,
+    `# 都道府県: ${conditionText(els.prefInput.value)}`,
+    `# 来店要件: ${conditionText(els.raitenSelect.value)}`,
+    `# NG店舗の除外: ${els.excludeNg.checked ? '除外しています' : '除外していません'}`,
+    '#',
+  ];
+}
+
+function csvEscape(value) {
+  const s = String(value ?? '');
+  if (/[",\r\n]/.test(s)) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function csvCellValue(col, value) {
+  switch (col.type) {
+    case 'currency': return Math.round(value || 0);
+    case 'percent': return `${(value || 0).toFixed(1)}%`;
+    case 'num': return value || 0;
+    default: return value || '';
+  }
+}
+
+function buildCsvContent() {
+  const { columns, rows } = getCurrentViewData();
+  const lines = buildConditionLines();
+
+  lines.push(columns.map(col => csvEscape(col.label)).join(','));
+  rows.forEach(row => {
+    lines.push(columns.map(col => csvEscape(csvCellValue(col, row[col.key]))).join(','));
+  });
+
+  return lines.join('\r\n');
+}
+
+function downloadCsv() {
+  const csvBody = buildCsvContent();
+  const bom = '\uFEFF'; // Excelで開いた際の文字化け対策
+  const blob = new Blob([bom + csvBody], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const tabDef = TAB_DEFS[activeTab];
+  const stamp = new Date().toISOString().slice(0, 10);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `dashboard_${tabDef.label}_${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 bindLoginForm();
 bindPwToggle();
 bindLogout();
+bindCsvExport();
 if (isAuthValid()) {
   showApp();
 } else {
@@ -505,9 +601,9 @@ function buildGroups(records, tabDef) {
   });
 }
 
-// ---------- テーブル描画（タブ共通） ----------
+// ---------- 現在の表示内容を取得（テーブル描画・CSV出力の共通処理） ----------
 
-function renderTable() {
+function getCurrentViewData() {
   const tabDef = TAB_DEFS[activeTab];
   const sourceRecords = tabDef.isNgOnly
     ? getBaseFiltered(true).filter(r => isNgShop(r.ngShop))
@@ -529,9 +625,18 @@ function renderTable() {
   const bpLabel = raitenValue ? `${raitenValue}BP` : 'BP';
   const metricColumns = getMetricColumns(tabDef).map(col => col.key === 'bp' ? { ...col, label: bpLabel } : col);
 
-  const allColumns = [...tabDef.columns, ...metricColumns, ...(tabDef.trailingColumns || [])];
+  const columns = [...tabDef.columns, ...metricColumns, ...(tabDef.trailingColumns || [])];
   const state = sortState[activeTab];
   sortRows(groups, state);
+
+  return { tabDef, columns, rows: groups };
+}
+
+// ---------- テーブル描画（タブ共通） ----------
+
+function renderTable() {
+  const { tabDef, columns: allColumns, rows: groups } = getCurrentViewData();
+  const state = sortState[activeTab];
 
   // ヘッダー描画
   els.tableHead.innerHTML = '<tr>' + allColumns.map(col => {
