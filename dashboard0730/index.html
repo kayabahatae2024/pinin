@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>分析ダッシュボード</title>
+<title>見込み利益ダッシュボード</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -39,7 +39,7 @@
 <header class="topbar">
   <div class="topbar__title">
     <span class="topbar__eyebrow">PROFIT DASHBOARD</span>
-    <h1>分析ダッシュボード</h1>
+    <h1>見込み利益・成約 集計ダッシュボード</h1>
   </div>
   <div class="topbar__sync">
     <span id="updatedAt" class="topbar__updated">未取得</span>
@@ -47,6 +47,7 @@
       <span class="btn__label">最新データを取得</span>
       <span class="btn__spinner" hidden></span>
     </button>
+    <button id="csvBtn" class="btn btn--ghost btn--sm">CSV出力</button>
     <button id="logoutBtn" class="btn btn--ghost btn--sm">ログアウト</button>
   </div>
 </header>
@@ -59,6 +60,21 @@
     <div class="modal-actions">
       <button id="logoutCancelBtn" class="btn btn--ghost">キャンセル</button>
       <button id="logoutConfirmBtn" class="btn btn--primary">ログアウト</button>
+    </div>
+  </div>
+</div>
+
+<!-- CSV出力確認モーダル -->
+<div id="csvModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <h3>CSV出力しますか？</h3>
+    <p>
+      現在の「<strong id="csvModalTabLabel"></strong>」タブの表示内容をCSV出力します。<br>
+      絞り込み条件は、CSVファイルの先頭にメモとして記載されます。
+    </p>
+    <div class="modal-actions">
+      <button id="csvCancelBtn" class="btn btn--ghost">キャンセル</button>
+      <button id="csvConfirmBtn" class="btn btn--primary">出力する</button>
     </div>
   </div>
 </div>
