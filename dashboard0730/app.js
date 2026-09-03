@@ -303,6 +303,23 @@ const TAB_DEFS = {
       { key: 'shopNote', label: '店舗備考(NG理由等)', type: 'text' },
     ],
   },
+  agency: {
+    label: '代理店別リスト用',
+    groupKeys: ['shop', 'brand'],
+    showKaisai: true,
+    columns: [
+      { key: 'chukai', label: '仲介', type: 'text' },
+      { key: 'chihou', label: '地方', type: 'region' },
+      { key: 'pref', label: '都道府県', type: 'text' },
+      { key: 'brand', label: '屋号', type: 'text' },
+      { key: 'shop', label: '店舗名', type: 'text' },
+    ],
+    trailingColumns: [
+      { key: 'orikomiBp', label: '折込BP', type: 'num' }, // 来店要件が「折り込み」の件数
+      { key: 'ngShop', label: 'NGチェック(TRUEorFALSE)', type: 'text' },
+      { key: 'shopNote', label: '店舗備考(NG理由等)', type: 'text' },
+    ],
+  },
 };
 
 // タブごとのソート状態を保持
@@ -570,7 +587,7 @@ function buildGroups(records, tabDef) {
       staticColumns.forEach(col => { labelFields[col.key] = r[col.key]; });
       const uniqueSets = {};
       uniqueListColumns.forEach(col => { uniqueSets[col.key] = new Set(); });
-      map.set(key, { ...labelFields, _uniqueSets: uniqueSets, sales: 0, bp: 0, seiyaku: 0, weekSet: new Set() });
+      map.set(key, { ...labelFields, _uniqueSets: uniqueSets, sales: 0, bp: 0, seiyaku: 0, orikomiBp: 0, weekSet: new Set() });
     }
     const g = map.get(key);
     uniqueListColumns.forEach(col => {
@@ -580,6 +597,7 @@ function buildGroups(records, tabDef) {
     g.sales += r.sales || 0;
     g.bp += 1;
     if (r.seiyaku) g.seiyaku += 1;
+    if (r.raiten === '折り込み') g.orikomiBp += 1; // 「折込BP」：来店要件が「折り込み」の件数
     if (r.week) g.weekSet.add(r.week); // 週の重複を除いてカウント（開催回数用）
   }
   return [...map.values()].map(g => {
