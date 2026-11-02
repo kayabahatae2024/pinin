@@ -184,15 +184,6 @@ function downloadCsv() {
   URL.revokeObjectURL(url);
 }
 
-bindLoginForm();
-bindPwToggle();
-bindLogout();
-bindCsvExport();
-if (isAuthValid()) {
-  showApp();
-} else {
-  showLogin();
-}
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbweiGy31MIM98D3rB_qpq28SUubjOBSPzrtpf9S33Tcyejjt2U0tCvIdIGn6S_gMHL8/exec';
 
 const STORAGE_KEY = 'dashboard_records_v1';
@@ -997,4 +988,20 @@ function debounce(fn, wait) {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), wait);
   };
+}
+
+// ---------- 起動処理 ----------
+// ※ ここまでで els 等の定義が完了しているため、ログイン済みの場合に
+//   showApp() -> init() が els を参照しても問題なく動作する。
+//   （以前はファイル先頭でこの呼び出しを行っており、ログイン保持中は
+//   els が未定義のままinit()が実行されエラーで停止し、「最新データを取得」
+//   ボタンなどが反応しなくなる不具合があったため、ここに移動した）
+bindLoginForm();
+bindPwToggle();
+bindLogout();
+bindCsvExport();
+if (isAuthValid()) {
+  showApp();
+} else {
+  showLogin();
 }
