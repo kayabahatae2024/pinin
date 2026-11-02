@@ -761,6 +761,13 @@ td.region-cell::before {
 }
 .chart-modal__controls .field { flex: 1 1 200px; }
 
+.chart-modal__values-toggle {
+  display: flex;
+  align-items: center;
+  flex: 1 1 160px;
+}
+.chart-modal__values-toggle .checkbox { margin-top: 18px; }
+
 .chart-modal__conditions {
   display: flex;
   flex-wrap: wrap;
