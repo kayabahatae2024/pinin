@@ -396,6 +396,7 @@ const els = {
   chartPdfBtn: document.getElementById('chartPdfBtn'),
   chartModalTabLabel: document.getElementById('chartModalTabLabel'),
   chartConditions: document.getElementById('chartConditions'),
+  chartShowValues: document.getElementById('chartShowValues'),
 };
 
 // ---------- Init ----------
@@ -406,10 +407,25 @@ function init() {
   bindEvents();
   bindTagInputs();
   bindChartModal();
+  bindSyncConfirm();
+}
+
+// ---------- 最新データ取得確認モーダル ----------
+
+function bindSyncConfirm() {
+  const modal = document.getElementById('syncModal');
+  const cancelBtn = document.getElementById('syncCancelBtn');
+  const confirmBtn = document.getElementById('syncConfirmBtn');
+
+  els.syncBtn.addEventListener('click', () => { modal.style.display = 'flex'; });
+  cancelBtn.addEventListener('click', () => { modal.style.display = 'none'; });
+  confirmBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+    syncFromSheet();
+  });
 }
 
 function bindEvents() {
-  els.syncBtn.addEventListener('click', syncFromSheet);
   els.resetBtn.addEventListener('click', resetFilters);
 
   [els.dateFrom, els.dateTo, els.weekSelect].forEach(el =>
@@ -908,7 +924,13 @@ function bindChartModal() {
   els.chartTypeSelect.addEventListener('change', renderChart);
   els.chartAxisSelect.addEventListener('change', renderChart);
   els.chartMetricSelect.addEventListener('change', renderChart);
+  if (els.chartShowValues) els.chartShowValues.addEventListener('change', renderChart);
   els.chartPdfBtn.addEventListener('click', exportChartToPdf);
+
+  // 数値ラベル表示用プラグイン（chartjs-plugin-datalabels）を一度だけ登録
+  if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+    try { Chart.register(ChartDataLabels); } catch (err) { /* 既に登録済みの場合は無視 */ }
+  }
 }
 
 function openChartModal() {
@@ -934,13 +956,11 @@ function populateChartAxisSelect() {
 function renderChartConditions() {
   if (!els.chartConditions) return;
   const items = buildActiveConditionItems();
-  const tabDef = TAB_DEFS[activeTab];
-  const prefix = `<span class="condition-chip"><span class="condition-chip__label">タブ</span>${escapeHtml(tabDef.label)}</span>`;
   if (items.length === 0) {
-    els.chartConditions.innerHTML = prefix + '<span class="condition-chip condition-chip--empty">絞り込みなし（全件表示中）</span>';
+    els.chartConditions.innerHTML = '<span class="condition-chip condition-chip--empty">絞り込みなし（全件表示中）</span>';
     return;
   }
-  els.chartConditions.innerHTML = prefix + items.map(it => `
+  els.chartConditions.innerHTML = items.map(it => `
     <span class="condition-chip"><span class="condition-chip__label">${escapeHtml(it.label)}</span>${escapeHtml(it.text)}</span>
   `).join('');
 }
@@ -1018,11 +1038,15 @@ function renderChart() {
   const values = topRows.map(r => Math.round((r[metricKey] || 0) * 100) / 100);
 
   const chartType = els.chartTypeSelect.value;
+  const showValues = !els.chartShowValues || els.chartShowValues.checked;
+  const hasDatalabelsPlugin = typeof ChartDataLabels !== 'undefined';
 
   if (chartInstance) {
     chartInstance.destroy();
     chartInstance = null;
   }
+
+  const titleSuffix = isTimeAxis ? '' : `（上位${labels.length}件）`;
 
   const ctx = els.chartCanvas.getContext('2d');
   chartInstance = new Chart(ctx, {
@@ -1048,14 +1072,31 @@ function renderChart() {
         legend: { display: chartType === 'pie' },
         title: {
           display: true,
-          text: `${TAB_DEFS[activeTab].label} - ${metricCol.label}（上位${labels.length}件）`,
+          text: `${TAB_DEFS[activeTab].label} - ${metricCol.label}${titleSuffix}`,
         },
+        datalabels: hasDatalabelsPlugin ? {
+          display: showValues,
+          color: chartType === 'pie' ? '#fff' : '#14171F',
+          anchor: chartType === 'line' ? 'end' : 'center',
+          align: chartType === 'line' ? 'top' : 'center',
+          font: { weight: 'bold', size: 11 },
+          formatter: (value) => formatChartValue(metricCol, value),
+        } : false,
       },
       scales: chartType === 'pie' ? {} : {
         y: { beginAtZero: true }
       }
     }
   });
+}
+
+// グラフの数値ラベル・PDF出力などで使う、指標の種類に応じた数値フォーマット
+function formatChartValue(metricCol, value) {
+  switch (metricCol.type) {
+    case 'currency': return formatCurrency(value);
+    case 'percent': return `${(value || 0).toFixed(1)}%`;
+    default: return (value || 0).toLocaleString('ja-JP');
+  }
 }
 
 function exportChartToPdf() {
