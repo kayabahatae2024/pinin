@@ -192,7 +192,8 @@ button, input, select {
 .filter-group--actions {
   background: transparent;
   border: none;
-  padding: 4px 0 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 14px;
 }
 
 .filter-group__row {
@@ -252,13 +253,14 @@ button, input, select {
 }
 
 .checkbox {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
   font-weight: 700;
   color: var(--ink-soft);
   cursor: pointer;
+  width: fit-content;
 }
 .checkbox input { width: 16px; height: 16px; accent-color: var(--accent); }
 
@@ -767,6 +769,17 @@ td.region-cell::before {
   flex: 1 1 160px;
 }
 .chart-modal__values-toggle .checkbox { margin-top: 18px; }
+
+.chart-modal__export {
+  background: var(--panel);
+}
+
+.chart-modal__export-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
 
 .chart-modal__conditions {
   display: flex;
