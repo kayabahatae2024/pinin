@@ -7,10 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261103c">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -129,9 +130,13 @@
         </label>
       </div>
     </div>
-    <div class="chart-modal__conditions" id="chartConditions"></div>
-    <div class="chart-modal__canvas-wrap">
-      <canvas id="chartCanvas"></canvas>
+    <!-- PDF出力時はこの枠内（タイトル・絞り込み条件・グラフ）をそのまま画像化します -->
+    <div id="chartExportArea" class="chart-modal__export">
+      <div class="chart-modal__export-title" id="chartExportTitle"></div>
+      <div class="chart-modal__conditions" id="chartConditions"></div>
+      <div class="chart-modal__canvas-wrap">
+        <canvas id="chartCanvas"></canvas>
+      </div>
     </div>
     <div class="modal-actions">
       <button id="chartPdfBtn" class="btn btn--primary" type="button">PDFとして保存</button>
@@ -154,6 +159,16 @@
 
   <!-- フィルタ -->
   <section class="panel filters" aria-label="絞り込み条件">
+
+    <div class="filter-group filter-group--actions">
+      <div class="filter-group__row filter-group__row--actions">
+        <label class="checkbox">
+          <input type="checkbox" id="excludeNg">
+          <span>NG店舗を除外する</span>
+        </label>
+        <button id="resetBtn" class="btn btn--ghost">条件をクリア</button>
+      </div>
+    </div>
 
     <div class="filter-group">
       <div class="filter-group__row">
@@ -232,16 +247,6 @@
           <datalist id="raitenList"></datalist>
           <div class="tag-list" id="raitenTags"></div>
         </div>
-      </div>
-    </div>
-
-    <div class="filter-group filter-group--actions">
-      <div class="filter-group__row filter-group__row--actions">
-        <label class="checkbox">
-          <input type="checkbox" id="excludeNg">
-          <span>NG店舗を除外する</span>
-        </label>
-        <button id="resetBtn" class="btn btn--ghost">条件をクリア</button>
       </div>
     </div>
 
@@ -341,6 +346,6 @@
 </footer>
 </div>
 
-<script src="app.js"></script>
+<script src="app.js?v=20261103c"></script>
 </body>
 </html>
