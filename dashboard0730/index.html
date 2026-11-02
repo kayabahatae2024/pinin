@@ -102,10 +102,15 @@
         </select>
       </div>
       <div class="field field--wide">
-        <label for="chartMetricSelect">表示する指標</label>
+        <label for="chartAxisSelect">横軸（分類）</label>
+        <select id="chartAxisSelect"></select>
+      </div>
+      <div class="field field--wide">
+        <label for="chartMetricSelect">縦軸（数値）</label>
         <select id="chartMetricSelect"></select>
       </div>
     </div>
+    <div class="chart-modal__conditions" id="chartConditions"></div>
     <div class="chart-modal__canvas-wrap">
       <canvas id="chartCanvas"></canvas>
     </div>
@@ -121,6 +126,12 @@
 
   <!-- サイドバー：検索条件（常に左側に表示） -->
   <aside class="sidebar">
+
+  <!-- 現在の検索条件サマリー -->
+  <section class="panel active-conditions" aria-label="現在の検索条件">
+    <span class="active-conditions__title">現在の検索条件</span>
+    <div class="active-conditions__body" id="activeConditions"></div>
+  </section>
 
   <!-- フィルタ -->
   <section class="panel filters" aria-label="絞り込み条件">
@@ -152,8 +163,10 @@
     <div class="filter-group">
       <div class="filter-group__row">
         <div class="field field--wide">
-          <label for="chukaiSelect">仲介（複数選択可／Ctrl・Cmdで複数クリック）</label>
-          <select id="chukaiSelect" multiple size="4"></select>
+          <label for="chukaiInput">仲介（複数選択可）</label>
+          <input type="text" id="chukaiInput" list="chukaiList" placeholder="仲介名を入力してEnter" autocomplete="off">
+          <datalist id="chukaiList"></datalist>
+          <div class="tag-list" id="chukaiTags"></div>
         </div>
       </div>
     </div>
@@ -161,13 +174,13 @@
     <div class="filter-group filter-group--wide">
       <div class="filter-group__row">
         <div class="field field--grow">
-          <label for="brandInput">屋号（複数選択可：入力してEnterで追加）</label>
+          <label for="brandInput">屋号（複数選択可）</label>
           <input type="text" id="brandInput" list="brandList" placeholder="屋号を入力してEnter" autocomplete="off">
           <datalist id="brandList"></datalist>
           <div class="tag-list" id="brandTags"></div>
         </div>
         <div class="field field--grow">
-          <label for="shopInput">店舗名（複数選択可：入力してEnterで追加）</label>
+          <label for="shopInput">店舗名（複数選択可）</label>
           <input type="text" id="shopInput" list="shopList" placeholder="店舗名を入力してEnter" autocomplete="off">
           <datalist id="shopList"></datalist>
           <div class="tag-list" id="shopTags"></div>
@@ -178,11 +191,13 @@
     <div class="filter-group filter-group--narrow">
       <div class="filter-group__row">
         <div class="field">
-          <label for="chihouSelect">地方（複数選択可）</label>
-          <select id="chihouSelect" multiple size="4"></select>
+          <label for="chihouInput">地方（複数選択可）</label>
+          <input type="text" id="chihouInput" list="chihouList" placeholder="地方名を入力してEnter" autocomplete="off">
+          <datalist id="chihouList"></datalist>
+          <div class="tag-list" id="chihouTags"></div>
         </div>
         <div class="field">
-          <label for="prefInput">都道府県（複数選択可：入力してEnterで追加）</label>
+          <label for="prefInput">都道府県（複数選択可）</label>
           <input type="text" id="prefInput" list="prefList" placeholder="都道府県を入力してEnter" autocomplete="off">
           <datalist id="prefList"></datalist>
           <div class="tag-list" id="prefTags"></div>
@@ -193,8 +208,10 @@
     <div class="filter-group filter-group--narrow">
       <div class="filter-group__row">
         <div class="field field--wide">
-          <label for="raitenSelect">来店要件（複数選択可）</label>
-          <select id="raitenSelect" multiple size="4"></select>
+          <label for="raitenInput">来店要件（複数選択可）</label>
+          <input type="text" id="raitenInput" list="raitenList" placeholder="来店要件を入力してEnter" autocomplete="off">
+          <datalist id="raitenList"></datalist>
+          <div class="tag-list" id="raitenTags"></div>
         </div>
       </div>
     </div>
