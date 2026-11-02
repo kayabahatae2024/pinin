@@ -109,6 +109,11 @@ function conditionText(rawValue) {
   return v ? v : '（指定なし）';
 }
 
+function conditionListText(values) {
+  if (!values || values.length === 0) return '（指定なし）';
+  return values.join('、');
+}
+
 function conditionRangeText(from, to) {
   if (!from && !to) return '（指定なし）';
   return `${from || '指定なし'} 〜 ${to || '指定なし'}`;
@@ -121,12 +126,12 @@ function buildConditionLines() {
     `# タブ: ${tabDef.label}`,
     `# 期間: ${conditionRangeText(els.dateFrom.value, els.dateTo.value)}`,
     `# 週: ${conditionText(els.weekSelect.value)}`,
-    `# 仲介: ${conditionText(els.chukaiSelect.value)}`,
-    `# 屋号: ${conditionText(els.brandInput.value)}`,
-    `# 店舗名: ${conditionText(els.shopInput.value)}`,
-    `# 地方: ${conditionText(els.chihouSelect.value)}`,
-    `# 都道府県: ${conditionText(els.prefInput.value)}`,
-    `# 来店要件: ${conditionText(els.raitenSelect.value)}`,
+    `# 仲介: ${conditionListText(getMultiSelectValues(els.chukaiSelect))}`,
+    `# 屋号: ${conditionListText(getTagValues('brand'))}`,
+    `# 店舗名: ${conditionListText(getTagValues('shop'))}`,
+    `# 地方: ${conditionListText(getMultiSelectValues(els.chihouSelect))}`,
+    `# 都道府県: ${conditionListText(getTagValues('pref'))}`,
+    `# 来店要件: ${conditionListText(getMultiSelectValues(els.raitenSelect))}`,
     `# NG店舗の除外: ${els.excludeNg.checked ? '除外しています' : '除外していません'}`,
     '#',
   ];
@@ -163,7 +168,7 @@ function buildCsvContent() {
 
 function downloadCsv() {
   const csvBody = buildCsvContent();
-  const bom = '\uFEFF'; // Excelで開いた際の文字化け対策
+  const bom = '﻿'; // Excelで開いた際の文字化け対策
   const blob = new Blob([bom + csvBody], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
 
@@ -196,6 +201,14 @@ let allRecords = [];      // GASから取得した全レコード
 let filteredRecords = []; // フィルタ後のレコード（NG除外チェックの影響を受ける）
 
 let activeTab = 'date';
+
+// ---------- 複数選択フィルタ（屋号・店舗名・都道府県のタグ入力用） ----------
+// key: 'brand' | 'shop' | 'pref' -> 選択済みの値の配列
+const tagFilterState = {
+  brand: [],
+  shop: [],
+  pref: [],
+};
 
 // ---------- タブ定義 ----------
 // columns: グループを識別するための表示列（groupKeys に対応する値を先頭から表示）
@@ -346,6 +359,10 @@ const els = {
   excludeNg: document.getElementById('excludeNg'),
   resetBtn: document.getElementById('resetBtn'),
 
+  brandTags: document.getElementById('brandTags'),
+  shopTags: document.getElementById('shopTags'),
+  prefTags: document.getElementById('prefTags'),
+
   brandList: document.getElementById('brandList'),
   shopList: document.getElementById('shopList'),
   prefList: document.getElementById('prefList'),
@@ -364,6 +381,15 @@ const els = {
   tableHead: document.getElementById('tableHead'),
   tableBody: document.getElementById('tableBody'),
   tableEmpty: document.getElementById('tableEmpty'),
+
+  chartBtn: document.getElementById('chartBtn'),
+  chartModal: document.getElementById('chartModal'),
+  chartModalClose: document.getElementById('chartModalClose'),
+  chartTypeSelect: document.getElementById('chartTypeSelect'),
+  chartMetricSelect: document.getElementById('chartMetricSelect'),
+  chartCanvas: document.getElementById('chartCanvas'),
+  chartPdfBtn: document.getElementById('chartPdfBtn'),
+  chartModalTabLabel: document.getElementById('chartModalTabLabel'),
 };
 
 // ---------- Init ----------
@@ -372,17 +398,17 @@ const els = {
 function init() {
   loadFromCache();
   bindEvents();
+  bindMultiSelects();
+  bindTagInputs();
+  bindChartModal();
 }
 
 function bindEvents() {
   els.syncBtn.addEventListener('click', syncFromSheet);
   els.resetBtn.addEventListener('click', resetFilters);
 
-  [els.dateFrom, els.dateTo, els.weekSelect, els.chukaiSelect, els.chihouSelect, els.raitenSelect].forEach(el =>
+  [els.dateFrom, els.dateTo, els.weekSelect].forEach(el =>
     el.addEventListener('change', applyFilters)
-  );
-  [els.brandInput, els.shopInput, els.prefInput].forEach(el =>
-    el.addEventListener('input', debounce(applyFilters, 200))
   );
   els.excludeNg.addEventListener('change', applyFilters);
 
@@ -466,10 +492,10 @@ function populateFilterOptions() {
   fillDatalist(els.shopList, unique('shop'));
   fillDatalist(els.prefList, unique('pref'));
 
-  fillSelect(els.chukaiSelect, unique('chukai'));
+  fillMultiSelect(els.chukaiSelect, unique('chukai'));
   fillSelect(els.weekSelect, unique('week'));
-  fillSelect(els.chihouSelect, unique('chihou'));
-  fillSelect(els.raitenSelect, unique('raiten'));
+  fillMultiSelect(els.chihouSelect, unique('chihou'));
+  fillMultiSelect(els.raitenSelect, unique('raiten'));
 }
 
 function fillSelect(selectEl, values) {
@@ -479,8 +505,79 @@ function fillSelect(selectEl, values) {
   if (values.includes(current)) selectEl.value = current;
 }
 
+// 複数選択セレクト（仲介・地方・来店要件）: 既存の選択を保持しつつ選択肢を再構築する
+function fillMultiSelect(selectEl, values) {
+  const current = getMultiSelectValues(selectEl);
+  selectEl.innerHTML = values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  [...selectEl.options].forEach(opt => {
+    if (current.includes(opt.value)) opt.selected = true;
+  });
+}
+
+function getMultiSelectValues(selectEl) {
+  return [...selectEl.selectedOptions].map(opt => opt.value).filter(Boolean);
+}
+
 function fillDatalist(listEl, values) {
   listEl.innerHTML = values.map(v => `<option value="${escapeHtml(v)}"></option>`).join('');
+}
+
+// ---------- タグ入力（屋号・店舗名・都道府県の複数選択） ----------
+
+function bindMultiSelects() {
+  [els.chukaiSelect, els.chihouSelect, els.raitenSelect].forEach(el => {
+    el.addEventListener('change', applyFilters);
+  });
+}
+
+function bindTagInputs() {
+  bindTagInput('brand', els.brandInput, els.brandTags);
+  bindTagInput('shop', els.shopInput, els.shopTags);
+  bindTagInput('pref', els.prefInput, els.prefTags);
+}
+
+function bindTagInput(key, inputEl, tagsEl) {
+  const addFromInput = () => {
+    const v = inputEl.value.trim();
+    if (!v) return;
+    if (!tagFilterState[key].includes(v)) {
+      tagFilterState[key].push(v);
+      renderTagList(key, tagsEl);
+      applyFilters();
+    }
+    inputEl.value = '';
+  };
+
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addFromInput();
+    }
+  });
+  // datalistから選択した場合もinputイベントで候補一致を検知して即時追加
+  inputEl.addEventListener('change', addFromInput);
+
+  tagsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-remove-value]');
+    if (!btn) return;
+    const val = btn.dataset.removeValue;
+    tagFilterState[key] = tagFilterState[key].filter(v => v !== val);
+    renderTagList(key, tagsEl);
+    applyFilters();
+  });
+}
+
+function renderTagList(key, tagsEl) {
+  tagsEl.innerHTML = tagFilterState[key].map(v => `
+    <span class="tag-chip">
+      ${escapeHtml(v)}
+      <button type="button" class="tag-chip__remove" data-remove-value="${escapeHtml(v)}" aria-label="削除">×</button>
+    </span>
+  `).join('');
+}
+
+function getTagValues(key) {
+  return tagFilterState[key];
 }
 
 // ---------- Filtering ----------
@@ -492,27 +589,32 @@ function getBaseFiltered(ignoreExcludeNg) {
   const from = els.dateFrom.value;
   const to = els.dateTo.value;
   const week = els.weekSelect.value.trim();
-  const chukai = els.chukaiSelect.value.trim();
-  const brand = els.brandInput.value.trim();
-  const shop = els.shopInput.value.trim();
-  const chihou = els.chihouSelect.value.trim();
-  const pref = els.prefInput.value.trim();
-  const raiten = els.raitenSelect.value.trim();
+  const chukaiValues = getMultiSelectValues(els.chukaiSelect);
+  const brandValues = getTagValues('brand');
+  const shopValues = getTagValues('shop');
+  const chihouValues = getMultiSelectValues(els.chihouSelect);
+  const prefValues = getTagValues('pref');
+  const raitenValues = getMultiSelectValues(els.raitenSelect);
   const excludeNg = !ignoreExcludeNg && els.excludeNg.checked;
 
   return allRecords.filter(r => {
     if (from && (!r.date || r.date < from)) return false;
     if (to && (!r.date || r.date > to)) return false;
     if (week && r.week !== week) return false;
-    if (chukai && r.chukai !== chukai) return false;
-    if (brand && !containsText(r.brand, brand)) return false;
-    if (shop && !containsText(r.shop, shop)) return false;
-    if (chihou && r.chihou !== chihou) return false;
-    if (pref && !containsText(r.pref, pref)) return false;
-    if (raiten && r.raiten !== raiten) return false;
+    if (chukaiValues.length && !chukaiValues.includes(r.chukai)) return false;
+    if (brandValues.length && !matchesAny(r.brand, brandValues)) return false;
+    if (shopValues.length && !matchesAny(r.shop, shopValues)) return false;
+    if (chihouValues.length && !chihouValues.includes(r.chihou)) return false;
+    if (prefValues.length && !matchesAny(r.pref, prefValues)) return false;
+    if (raitenValues.length && !raitenValues.includes(r.raiten)) return false;
     if (excludeNg && isNgShop(r.ngShop)) return false;
     return true;
   });
+}
+
+// 複数の候補のうち、いずれかを含んでいればtrue（部分一致・OR検索）
+function matchesAny(value, queries) {
+  return queries.some(q => containsText(value, q));
 }
 
 function containsText(value, query) {
@@ -529,12 +631,18 @@ function resetFilters() {
   els.dateFrom.value = '';
   els.dateTo.value = '';
   els.weekSelect.value = '';
-  els.chukaiSelect.value = '';
+  [...els.chukaiSelect.options].forEach(opt => { opt.selected = false; });
+  [...els.chihouSelect.options].forEach(opt => { opt.selected = false; });
+  [...els.raitenSelect.options].forEach(opt => { opt.selected = false; });
+  tagFilterState.brand = [];
+  tagFilterState.shop = [];
+  tagFilterState.pref = [];
+  renderTagList('brand', els.brandTags);
+  renderTagList('shop', els.shopTags);
+  renderTagList('pref', els.prefTags);
   els.brandInput.value = '';
   els.shopInput.value = '';
-  els.chihouSelect.value = '';
   els.prefInput.value = '';
-  els.raitenSelect.value = '';
   els.excludeNg.checked = false;
   applyFilters();
 }
@@ -619,7 +727,7 @@ function buildGroups(records, tabDef) {
   });
 }
 
-// ---------- 現在の表示内容を取得（テーブル描画・CSV出力の共通処理） ----------
+// ---------- 現在の表示内容を取得（テーブル描画・CSV出力・グラフ表示の共通処理） ----------
 
 function getCurrentViewData() {
   const tabDef = TAB_DEFS[activeTab];
@@ -630,7 +738,7 @@ function getCurrentViewData() {
   const groups = buildGroups(sourceRecords, tabDef);
 
   // 店長名などのユニーク集計列は、店舗名で絞り込んでいる時だけ値を表示する
-  const shopFilterActive = els.shopInput.value.trim() !== '';
+  const shopFilterActive = getTagValues('shop').length > 0;
   if (!shopFilterActive) {
     const uniqueListKeys = tabDef.columns.filter(col => col.type === 'uniqueList').map(col => col.key);
     if (uniqueListKeys.length > 0) {
@@ -638,9 +746,9 @@ function getCurrentViewData() {
     }
   }
 
-  // 来店要件が絞り込まれている場合、BP列の見出しを「〇〇BP」に変更
-  const raitenValue = els.raitenSelect.value.trim();
-  const bpLabel = raitenValue ? `${raitenValue}BP` : 'BP';
+  // 来店要件が単一選択されている場合、BP列の見出しを「〇〇BP」に変更
+  const raitenValues = getMultiSelectValues(els.raitenSelect);
+  const bpLabel = raitenValues.length === 1 ? `${raitenValues[0]}BP` : 'BP';
   const metricColumns = getMetricColumns(tabDef).map(col => col.key === 'bp' ? { ...col, label: bpLabel } : col);
 
   const columns = [...tabDef.columns, ...metricColumns, ...(tabDef.trailingColumns || [])];
@@ -718,6 +826,150 @@ function switchTab(tabId) {
   activeTab = tabId;
   els.tabs.forEach(t => t.classList.toggle('is-active', t.dataset.tab === tabId));
   renderTable();
+}
+
+// ---------- グラフ表示モーダル ----------
+
+let chartInstance = null;
+
+function bindChartModal() {
+  if (!els.chartBtn) return; // index.htmlが未更新の場合は安全にスキップ
+
+  els.chartBtn.addEventListener('click', openChartModal);
+  els.chartModalClose.addEventListener('click', closeChartModal);
+  els.chartModal.addEventListener('click', (e) => {
+    if (e.target === els.chartModal) closeChartModal();
+  });
+  els.chartTypeSelect.addEventListener('change', renderChart);
+  els.chartMetricSelect.addEventListener('change', renderChart);
+  els.chartPdfBtn.addEventListener('click', exportChartToPdf);
+}
+
+function openChartModal() {
+  els.chartModalTabLabel.textContent = TAB_DEFS[activeTab].label;
+  els.chartModal.style.display = 'flex';
+  renderChart();
+}
+
+function closeChartModal() {
+  els.chartModal.style.display = 'none';
+}
+
+// 表示中のタブ・絞り込み条件に応じて、グラフに使える指標の選択肢を作る
+function getChartableMetrics() {
+  const { columns } = getCurrentViewData();
+  return columns.filter(col => col.type === 'num' || col.type === 'currency' || col.type === 'percent');
+}
+
+function populateChartMetricSelect() {
+  const metrics = getChartableMetrics();
+  const current = els.chartMetricSelect.value;
+  els.chartMetricSelect.innerHTML = metrics.map(m => `<option value="${escapeHtml(m.key)}">${escapeHtml(m.label)}</option>`).join('');
+  const defaultKey = metrics.some(m => m.key === 'sales') ? 'sales' : (metrics[0] ? metrics[0].key : '');
+  const toSelect = metrics.some(m => m.key === current) ? current : defaultKey;
+  if (toSelect) els.chartMetricSelect.value = toSelect;
+}
+
+function renderChart() {
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js が読み込まれていません。');
+    return;
+  }
+  populateChartMetricSelect();
+
+  const { tabDef, rows } = getCurrentViewData();
+  const metricKey = els.chartMetricSelect.value;
+  const metricCol = getChartableMetrics().find(m => m.key === metricKey);
+  if (!metricCol) return;
+
+  // ラベル列：タブの先頭の表示列を使う（日付別なら日付、店舗別なら店舗名、など）
+  const labelCol = tabDef.columns[tabDef.columns.length - 1] || tabDef.columns[0];
+
+  // データが多すぎると見づらいため、指標の降順で上位20件に絞る
+  const sorted = [...rows].sort((a, b) => (b[metricKey] || 0) - (a[metricKey] || 0));
+  const topRows = sorted.slice(0, 20);
+
+  const labels = topRows.map(r => String(r[labelCol.key] || '—'));
+  const values = topRows.map(r => Math.round((r[metricKey] || 0) * 100) / 100);
+
+  const chartType = els.chartTypeSelect.value;
+
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+  }
+
+  const ctx = els.chartCanvas.getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: chartType,
+    data: {
+      labels: labels,
+      datasets: [{
+        label: metricCol.label,
+        data: values,
+        backgroundColor: chartType === 'pie'
+          ? labels.map((_, i) => REGION_COLORS[i % REGION_COLORS.length])
+          : 'rgba(47, 73, 209, 0.55)',
+        borderColor: '#2F49D1',
+        borderWidth: chartType === 'line' ? 2 : 1,
+        tension: 0.25,
+        fill: chartType === 'line' ? false : true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: chartType === 'pie' },
+        title: {
+          display: true,
+          text: `${TAB_DEFS[activeTab].label} - ${metricCol.label}（上位${labels.length}件）`,
+        },
+      },
+      scales: chartType === 'pie' ? {} : {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
+function exportChartToPdf() {
+  if (!chartInstance) return;
+  if (typeof window.jspdf === 'undefined') {
+    console.warn('jsPDF が読み込まれていません。');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const imgData = els.chartCanvas.toDataURL('image/png', 1.0);
+
+  const canvasWidthPx = els.chartCanvas.width;
+  const canvasHeightPx = els.chartCanvas.height;
+  const isLandscape = canvasWidthPx >= canvasHeightPx;
+
+  const pdf = new jsPDF({
+    orientation: isLandscape ? 'landscape' : 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 12;
+  const maxW = pageWidth - margin * 2;
+  const maxH = pageHeight - margin * 2 - 16; // タイトル行の分を確保
+
+  const ratio = Math.min(maxW / canvasWidthPx, maxH / canvasHeightPx);
+  const drawW = canvasWidthPx * ratio;
+  const drawH = canvasHeightPx * ratio;
+  const offsetX = (pageWidth - drawW) / 2;
+
+  const tabDef = TAB_DEFS[activeTab];
+  pdf.setFontSize(12);
+  pdf.text(`${tabDef.label} グラフ出力 (${new Date().toLocaleString('ja-JP')})`, margin, margin);
+  pdf.addImage(imgData, 'PNG', offsetX, margin + 8, drawW, drawH);
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  pdf.save(`dashboard_chart_${tabDef.label}_${stamp}.pdf`);
 }
 
 // ---------- Utils ----------
