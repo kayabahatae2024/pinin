@@ -397,6 +397,8 @@ const els = {
   chartModalTabLabel: document.getElementById('chartModalTabLabel'),
   chartConditions: document.getElementById('chartConditions'),
   chartShowValues: document.getElementById('chartShowValues'),
+  chartExportArea: document.getElementById('chartExportArea'),
+  chartExportTitle: document.getElementById('chartExportTitle'),
 };
 
 // ---------- Init ----------
@@ -1013,6 +1015,9 @@ function renderChart() {
   populateChartAxisSelect();
   populateChartMetricSelect();
   renderChartConditions();
+  if (els.chartExportTitle) {
+    els.chartExportTitle.textContent = `出力日時: ${new Date().toLocaleString('ja-JP')}`;
+  }
 
   const { tabDef, rows } = getCurrentViewData();
   const metricKey = els.chartMetricSelect.value;
@@ -1099,43 +1104,66 @@ function formatChartValue(metricCol, value) {
   }
 }
 
-function exportChartToPdf() {
+// PDF出力は、グラフ単体ではなく「出力日時・絞り込み条件・グラフ」をまとめた
+// chartExportArea をそのまま画像化して埋め込む。こうすることで、
+// 文字化け（jsPDF標準フォントが日本語非対応のため）を避けつつ、
+// ページ表示と同じフォント・レイアウトでPDF化できる。
+async function exportChartToPdf() {
   if (!chartInstance) return;
-  if (typeof window.jspdf === 'undefined') {
-    console.warn('jsPDF が読み込まれていません。');
+  if (typeof window.jspdf === 'undefined' || typeof html2canvas === 'undefined') {
+    console.warn('PDF出力に必要なライブラリ（jsPDF / html2canvas）が読み込まれていません。');
     return;
   }
-  const { jsPDF } = window.jspdf;
-  const imgData = els.chartCanvas.toDataURL('image/png', 1.0);
 
-  const canvasWidthPx = els.chartCanvas.width;
-  const canvasHeightPx = els.chartCanvas.height;
-  const isLandscape = canvasWidthPx >= canvasHeightPx;
+  els.chartPdfBtn.disabled = true;
+  const originalLabel = els.chartPdfBtn.textContent;
+  els.chartPdfBtn.textContent = '作成中…';
 
-  const pdf = new jsPDF({
-    orientation: isLandscape ? 'landscape' : 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  });
+  try {
+    // 出力日時を最新の状態にしてからキャプチャする
+    if (els.chartExportTitle) {
+      els.chartExportTitle.textContent = `出力日時: ${new Date().toLocaleString('ja-JP')}`;
+    }
 
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 12;
-  const maxW = pageWidth - margin * 2;
-  const maxH = pageHeight - margin * 2 - 16; // タイトル行の分を確保
+    const captureCanvas = await html2canvas(els.chartExportArea, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+    });
+    const imgData = captureCanvas.toDataURL('image/png', 1.0);
 
-  const ratio = Math.min(maxW / canvasWidthPx, maxH / canvasHeightPx);
-  const drawW = canvasWidthPx * ratio;
-  const drawH = canvasHeightPx * ratio;
-  const offsetX = (pageWidth - drawW) / 2;
+    const { jsPDF } = window.jspdf;
+    const isLandscape = captureCanvas.width >= captureCanvas.height;
+    const pdf = new jsPDF({
+      orientation: isLandscape ? 'landscape' : 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
 
-  const tabDef = TAB_DEFS[activeTab];
-  pdf.setFontSize(12);
-  pdf.text(`${tabDef.label} グラフ出力 (${new Date().toLocaleString('ja-JP')})`, margin, margin);
-  pdf.addImage(imgData, 'PNG', offsetX, margin + 8, drawW, drawH);
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const maxW = pageWidth - margin * 2;
+    const maxH = pageHeight - margin * 2;
 
-  const stamp = new Date().toISOString().slice(0, 10);
-  pdf.save(`dashboard_chart_${tabDef.label}_${stamp}.pdf`);
+    const ratio = Math.min(maxW / captureCanvas.width, maxH / captureCanvas.height);
+    const drawW = captureCanvas.width * ratio;
+    const drawH = captureCanvas.height * ratio;
+    const offsetX = (pageWidth - drawW) / 2;
+    const offsetY = margin;
+
+    pdf.addImage(imgData, 'PNG', offsetX, offsetY, drawW, drawH);
+
+    const tabDef = TAB_DEFS[activeTab];
+    const stamp = new Date().toISOString().slice(0, 10);
+    pdf.save(`dashboard_chart_${tabDef.label}_${stamp}.pdf`);
+  } catch (err) {
+    console.error(err);
+    showError('PDFの作成に失敗しました。詳細: ' + err.message);
+  } finally {
+    els.chartPdfBtn.disabled = false;
+    els.chartPdfBtn.textContent = originalLabel;
+  }
 }
 
 // ---------- Utils ----------
