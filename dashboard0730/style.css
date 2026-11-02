@@ -239,6 +239,18 @@ button, input, select {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/* 候補一覧に無い値が入力された時の警告表示 */
+.field input.field--invalid {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+  animation: shake 0.3s ease;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
 .checkbox {
   display: flex;
   align-items: center;
