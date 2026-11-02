@@ -490,15 +490,34 @@ function hideError() { els.errorBanner.hidden = true; }
 
 // ---------- Filter options ----------
 
+// タグ入力の各フィールドで「実際にデータに存在する値」のみを許可するための一覧
+const validTagOptions = {
+  chukai: [], brand: [], shop: [], chihou: [], pref: [], raiten: [],
+};
+
 function populateFilterOptions() {
   const unique = (key) => [...new Set(allRecords.map(r => r[key]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'ja'));
 
-  fillDatalist(els.chukaiList, unique('chukai'));
-  fillDatalist(els.brandList, unique('brand'));
-  fillDatalist(els.shopList, unique('shop'));
-  fillDatalist(els.chihouList, unique('chihou'));
-  fillDatalist(els.prefList, unique('pref'));
-  fillDatalist(els.raitenList, unique('raiten'));
+  const chukaiValues = unique('chukai');
+  const brandValues = unique('brand');
+  const shopValues = unique('shop');
+  const chihouValues = unique('chihou');
+  const prefValues = unique('pref');
+  const raitenValues = unique('raiten');
+
+  fillDatalist(els.chukaiList, chukaiValues);
+  fillDatalist(els.brandList, brandValues);
+  fillDatalist(els.shopList, shopValues);
+  fillDatalist(els.chihouList, chihouValues);
+  fillDatalist(els.prefList, prefValues);
+  fillDatalist(els.raitenList, raitenValues);
+
+  validTagOptions.chukai = chukaiValues;
+  validTagOptions.brand = brandValues;
+  validTagOptions.shop = shopValues;
+  validTagOptions.chihou = chihouValues;
+  validTagOptions.pref = prefValues;
+  validTagOptions.raiten = raitenValues;
 
   fillSelect(els.weekSelect, unique('week'));
 }
@@ -526,11 +545,25 @@ function bindTagInputs() {
 }
 
 function bindTagInput(key, inputEl, tagsEl) {
+  const flashInvalid = () => {
+    inputEl.classList.add('field--invalid');
+    setTimeout(() => inputEl.classList.remove('field--invalid'), 500);
+  };
+
   const addFromInput = () => {
     const v = inputEl.value.trim();
     if (!v) return;
-    if (!tagFilterState[key].includes(v)) {
-      tagFilterState[key].push(v);
+
+    // 候補一覧（実際にデータに存在する値）に無い値は、誤入力・誤認識を防ぐため追加しない
+    const options = validTagOptions[key] || [];
+    const matched = options.find(opt => opt === v) || options.find(opt => opt.toLowerCase() === v.toLowerCase());
+    if (!matched) {
+      flashInvalid();
+      return; // 入力内容は残したままにする（修正・候補選択しやすくするため）
+    }
+
+    if (!tagFilterState[key].includes(matched)) {
+      tagFilterState[key].push(matched);
       renderTagList(key, tagsEl);
       applyFilters();
     }
@@ -916,6 +949,27 @@ function closeChartModal() {
   els.chartModal.style.display = 'none';
 }
 
+// 横軸がこれらの列の場合は、指標の大小ではなく時系列（昇順）で並べる
+const TIME_AXIS_KEYS = ['date', 'week', 'month'];
+
+// 日付・週・月などの値を時系列順に比較する（形式が多少違っても自然な順序になるようにする）
+function chronoCompare(a, b) {
+  const sa = String(a || '');
+  const sb = String(b || '');
+
+  // ISO形式の日付（yyyy-MM-dd）等、そのまま日付として解釈できる場合は日付として比較
+  const da = Date.parse(sa);
+  const db = Date.parse(sb);
+  if (!isNaN(da) && !isNaN(db)) return da - db;
+
+  // 先頭に含まれる数値（例: 「2026年1月」「第3週」など）があれば数値として比較
+  const na = parseFloat(sa.replace(/[^0-9.\-]/g, ''));
+  const nb = parseFloat(sb.replace(/[^0-9.\-]/g, ''));
+  if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+
+  return sa.localeCompare(sb, 'ja');
+}
+
 // 表示中のタブ・絞り込み条件に応じて、グラフに使える指標の選択肢を作る
 function getChartableMetrics() {
   const { columns } = getCurrentViewData();
@@ -949,9 +1003,16 @@ function renderChart() {
   const axisCols = getChartAxisColumns();
   const labelCol = axisCols.find(c => c.key === els.chartAxisSelect.value) || axisCols[axisCols.length - 1] || axisCols[0];
 
-  // データが多すぎると見づらいため、指標の降順で上位20件に絞る
-  const sorted = [...rows].sort((a, b) => (b[metricKey] || 0) - (a[metricKey] || 0));
-  const topRows = sorted.slice(0, 20);
+  // 横軸が日付・週・月の場合は時系列順（昇順）に、それ以外は指標の降順で並べる
+  const isTimeAxis = TIME_AXIS_KEYS.includes(labelCol.key);
+  let topRows;
+  if (isTimeAxis) {
+    topRows = [...rows].sort((a, b) => chronoCompare(a[labelCol.key], b[labelCol.key]));
+  } else {
+    // データが多すぎると見づらいため、指標の降順で上位20件に絞る
+    const sorted = [...rows].sort((a, b) => (b[metricKey] || 0) - (a[metricKey] || 0));
+    topRows = sorted.slice(0, 20);
+  }
 
   const labels = topRows.map(r => String(r[labelCol.key] || '—'));
   const values = topRows.map(r => Math.round((r[metricKey] || 0) * 100) / 100);
