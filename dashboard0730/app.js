@@ -126,12 +126,12 @@ function buildConditionLines() {
     `# タブ: ${tabDef.label}`,
     `# 期間: ${conditionRangeText(els.dateFrom.value, els.dateTo.value)}`,
     `# 週: ${conditionText(els.weekSelect.value)}`,
-    `# 仲介: ${conditionListText(getMultiSelectValues(els.chukaiSelect))}`,
+    `# 仲介: ${conditionListText(getTagValues('chukai'))}`,
     `# 屋号: ${conditionListText(getTagValues('brand'))}`,
     `# 店舗名: ${conditionListText(getTagValues('shop'))}`,
-    `# 地方: ${conditionListText(getMultiSelectValues(els.chihouSelect))}`,
+    `# 地方: ${conditionListText(getTagValues('chihou'))}`,
     `# 都道府県: ${conditionListText(getTagValues('pref'))}`,
-    `# 来店要件: ${conditionListText(getMultiSelectValues(els.raitenSelect))}`,
+    `# 来店要件: ${conditionListText(getTagValues('raiten'))}`,
     `# NG店舗の除外: ${els.excludeNg.checked ? '除外しています' : '除外していません'}`,
     '#',
   ];
@@ -193,13 +193,18 @@ let filteredRecords = []; // フィルタ後のレコード（NG除外チェッ�
 
 let activeTab = 'date';
 
-// ---------- 複数選択フィルタ（屋号・店舗名・都道府県のタグ入力用） ----------
-// key: 'brand' | 'shop' | 'pref' -> 選択済みの値の配列
+// ---------- 複数選択フィルタ（タグ入力用） ----------
+// key -> 選択済みの値の配列
+// brand/shop/pref: 部分一致のOR検索、chukai/chihou/raiten: 完全一致のOR検索
 const tagFilterState = {
   brand: [],
   shop: [],
   pref: [],
+  chukai: [],
+  chihou: [],
+  raiten: [],
 };
+const EXACT_MATCH_TAG_KEYS = ['chukai', 'chihou', 'raiten'];
 
 // ---------- タブ定義 ----------
 // columns: グループを識別するための表示列（groupKeys に対応する値を先頭から表示）
@@ -341,22 +346,30 @@ const els = {
   dateFrom: document.getElementById('dateFrom'),
   dateTo: document.getElementById('dateTo'),
   weekSelect: document.getElementById('weekSelect'),
-  chukaiSelect: document.getElementById('chukaiSelect'),
+  chukaiInput: document.getElementById('chukaiInput'),
   brandInput: document.getElementById('brandInput'),
   shopInput: document.getElementById('shopInput'),
-  chihouSelect: document.getElementById('chihouSelect'),
+  chihouInput: document.getElementById('chihouInput'),
   prefInput: document.getElementById('prefInput'),
-  raitenSelect: document.getElementById('raitenSelect'),
+  raitenInput: document.getElementById('raitenInput'),
   excludeNg: document.getElementById('excludeNg'),
   resetBtn: document.getElementById('resetBtn'),
 
+  chukaiTags: document.getElementById('chukaiTags'),
   brandTags: document.getElementById('brandTags'),
   shopTags: document.getElementById('shopTags'),
+  chihouTags: document.getElementById('chihouTags'),
   prefTags: document.getElementById('prefTags'),
+  raitenTags: document.getElementById('raitenTags'),
 
+  chukaiList: document.getElementById('chukaiList'),
   brandList: document.getElementById('brandList'),
   shopList: document.getElementById('shopList'),
+  chihouList: document.getElementById('chihouList'),
   prefList: document.getElementById('prefList'),
+  raitenList: document.getElementById('raitenList'),
+
+  activeConditions: document.getElementById('activeConditions'),
 
   kpiSales: document.getElementById('kpiSales'),
   kpiBp: document.getElementById('kpiBp'),
@@ -377,10 +390,12 @@ const els = {
   chartModal: document.getElementById('chartModal'),
   chartModalClose: document.getElementById('chartModalClose'),
   chartTypeSelect: document.getElementById('chartTypeSelect'),
+  chartAxisSelect: document.getElementById('chartAxisSelect'),
   chartMetricSelect: document.getElementById('chartMetricSelect'),
   chartCanvas: document.getElementById('chartCanvas'),
   chartPdfBtn: document.getElementById('chartPdfBtn'),
   chartModalTabLabel: document.getElementById('chartModalTabLabel'),
+  chartConditions: document.getElementById('chartConditions'),
 };
 
 // ---------- Init ----------
@@ -389,7 +404,6 @@ const els = {
 function init() {
   loadFromCache();
   bindEvents();
-  bindMultiSelects();
   bindTagInputs();
   bindChartModal();
 }
@@ -479,14 +493,14 @@ function hideError() { els.errorBanner.hidden = true; }
 function populateFilterOptions() {
   const unique = (key) => [...new Set(allRecords.map(r => r[key]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'ja'));
 
+  fillDatalist(els.chukaiList, unique('chukai'));
   fillDatalist(els.brandList, unique('brand'));
   fillDatalist(els.shopList, unique('shop'));
+  fillDatalist(els.chihouList, unique('chihou'));
   fillDatalist(els.prefList, unique('pref'));
+  fillDatalist(els.raitenList, unique('raiten'));
 
-  fillMultiSelect(els.chukaiSelect, unique('chukai'));
   fillSelect(els.weekSelect, unique('week'));
-  fillMultiSelect(els.chihouSelect, unique('chihou'));
-  fillMultiSelect(els.raitenSelect, unique('raiten'));
 }
 
 function fillSelect(selectEl, values) {
@@ -496,35 +510,19 @@ function fillSelect(selectEl, values) {
   if (values.includes(current)) selectEl.value = current;
 }
 
-// 複数選択セレクト（仲介・地方・来店要件）: 既存の選択を保持しつつ選択肢を再構築する
-function fillMultiSelect(selectEl, values) {
-  const current = getMultiSelectValues(selectEl);
-  selectEl.innerHTML = values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-  [...selectEl.options].forEach(opt => {
-    if (current.includes(opt.value)) opt.selected = true;
-  });
-}
-
-function getMultiSelectValues(selectEl) {
-  return [...selectEl.selectedOptions].map(opt => opt.value).filter(Boolean);
-}
-
 function fillDatalist(listEl, values) {
   listEl.innerHTML = values.map(v => `<option value="${escapeHtml(v)}"></option>`).join('');
 }
 
-// ---------- タグ入力（屋号・店舗名・都道府県の複数選択） ----------
-
-function bindMultiSelects() {
-  [els.chukaiSelect, els.chihouSelect, els.raitenSelect].forEach(el => {
-    el.addEventListener('change', applyFilters);
-  });
-}
+// ---------- タグ入力（仲介・屋号・店舗名・地方・都道府県・来店要件の複数選択） ----------
 
 function bindTagInputs() {
+  bindTagInput('chukai', els.chukaiInput, els.chukaiTags);
   bindTagInput('brand', els.brandInput, els.brandTags);
   bindTagInput('shop', els.shopInput, els.shopTags);
+  bindTagInput('chihou', els.chihouInput, els.chihouTags);
   bindTagInput('pref', els.prefInput, els.prefTags);
+  bindTagInput('raiten', els.raitenInput, els.raitenTags);
 }
 
 function bindTagInput(key, inputEl, tagsEl) {
@@ -580,12 +578,12 @@ function getBaseFiltered(ignoreExcludeNg) {
   const from = els.dateFrom.value;
   const to = els.dateTo.value;
   const week = els.weekSelect.value.trim();
-  const chukaiValues = getMultiSelectValues(els.chukaiSelect);
+  const chukaiValues = getTagValues('chukai');
   const brandValues = getTagValues('brand');
   const shopValues = getTagValues('shop');
-  const chihouValues = getMultiSelectValues(els.chihouSelect);
+  const chihouValues = getTagValues('chihou');
   const prefValues = getTagValues('pref');
-  const raitenValues = getMultiSelectValues(els.raitenSelect);
+  const raitenValues = getTagValues('raiten');
   const excludeNg = !ignoreExcludeNg && els.excludeNg.checked;
 
   return allRecords.filter(r => {
@@ -622,18 +620,19 @@ function resetFilters() {
   els.dateFrom.value = '';
   els.dateTo.value = '';
   els.weekSelect.value = '';
-  [...els.chukaiSelect.options].forEach(opt => { opt.selected = false; });
-  [...els.chihouSelect.options].forEach(opt => { opt.selected = false; });
-  [...els.raitenSelect.options].forEach(opt => { opt.selected = false; });
-  tagFilterState.brand = [];
-  tagFilterState.shop = [];
-  tagFilterState.pref = [];
+  Object.keys(tagFilterState).forEach(key => { tagFilterState[key] = []; });
+  renderTagList('chukai', els.chukaiTags);
   renderTagList('brand', els.brandTags);
   renderTagList('shop', els.shopTags);
+  renderTagList('chihou', els.chihouTags);
   renderTagList('pref', els.prefTags);
+  renderTagList('raiten', els.raitenTags);
+  els.chukaiInput.value = '';
   els.brandInput.value = '';
   els.shopInput.value = '';
+  els.chihouInput.value = '';
   els.prefInput.value = '';
+  els.raitenInput.value = '';
   els.excludeNg.checked = false;
   applyFilters();
 }
@@ -642,6 +641,48 @@ function applyFilters() {
   filteredRecords = getBaseFiltered(false);
   renderKpis();
   renderTable();
+  renderActiveConditions();
+}
+
+// ---------- 現在の検索条件サマリー ----------
+
+// 現在アクティブな（指定されている）絞り込み条件だけを { label, text } の配列として返す
+function buildActiveConditionItems() {
+  const items = [];
+  if (els.dateFrom.value || els.dateTo.value) {
+    items.push({ label: '期間', text: conditionRangeText(els.dateFrom.value, els.dateTo.value) });
+  }
+  if (els.weekSelect.value.trim()) {
+    items.push({ label: '週', text: els.weekSelect.value.trim() });
+  }
+  const tagLabels = [
+    ['chukai', '仲介'],
+    ['brand', '屋号'],
+    ['shop', '店舗名'],
+    ['chihou', '地方'],
+    ['pref', '都道府県'],
+    ['raiten', '来店要件'],
+  ];
+  tagLabels.forEach(([key, label]) => {
+    const values = getTagValues(key);
+    if (values.length) items.push({ label, text: values.join('、') });
+  });
+  if (els.excludeNg.checked) {
+    items.push({ label: 'NG店舗', text: '除外しています' });
+  }
+  return items;
+}
+
+function renderActiveConditions() {
+  if (!els.activeConditions) return;
+  const items = buildActiveConditionItems();
+  if (items.length === 0) {
+    els.activeConditions.innerHTML = '<span class="active-conditions__empty">絞り込みなし（全件表示中）</span>';
+    return;
+  }
+  els.activeConditions.innerHTML = items.map(it => `
+    <span class="condition-chip"><span class="condition-chip__label">${escapeHtml(it.label)}</span>${escapeHtml(it.text)}</span>
+  `).join('');
 }
 
 // ---------- KPI ----------
@@ -738,7 +779,7 @@ function getCurrentViewData() {
   }
 
   // 来店要件が単一選択されている場合、BP列の見出しを「〇〇BP」に変更
-  const raitenValues = getMultiSelectValues(els.raitenSelect);
+  const raitenValues = getTagValues('raiten');
   const bpLabel = raitenValues.length === 1 ? `${raitenValues[0]}BP` : 'BP';
   const metricColumns = getMetricColumns(tabDef).map(col => col.key === 'bp' ? { ...col, label: bpLabel } : col);
 
@@ -832,6 +873,7 @@ function bindChartModal() {
     if (e.target === els.chartModal) closeChartModal();
   });
   els.chartTypeSelect.addEventListener('change', renderChart);
+  els.chartAxisSelect.addEventListener('change', renderChart);
   els.chartMetricSelect.addEventListener('change', renderChart);
   els.chartPdfBtn.addEventListener('click', exportChartToPdf);
 }
@@ -840,6 +882,34 @@ function openChartModal() {
   els.chartModalTabLabel.textContent = TAB_DEFS[activeTab].label;
   els.chartModal.style.display = 'flex';
   renderChart();
+}
+
+// 横軸（分類）に使える列：現在のタブの表示列（日付・店舗名・仲介名など）
+function getChartAxisColumns() {
+  const { tabDef } = getCurrentViewData();
+  return tabDef.columns;
+}
+
+function populateChartAxisSelect() {
+  const axisCols = getChartAxisColumns();
+  const current = els.chartAxisSelect.value;
+  els.chartAxisSelect.innerHTML = axisCols.map(c => `<option value="${escapeHtml(c.key)}">${escapeHtml(c.label)}</option>`).join('');
+  const toSelect = axisCols.some(c => c.key === current) ? current : (axisCols[axisCols.length - 1] ? axisCols[axisCols.length - 1].key : '');
+  if (toSelect) els.chartAxisSelect.value = toSelect;
+}
+
+function renderChartConditions() {
+  if (!els.chartConditions) return;
+  const items = buildActiveConditionItems();
+  const tabDef = TAB_DEFS[activeTab];
+  const prefix = `<span class="condition-chip"><span class="condition-chip__label">タブ</span>${escapeHtml(tabDef.label)}</span>`;
+  if (items.length === 0) {
+    els.chartConditions.innerHTML = prefix + '<span class="condition-chip condition-chip--empty">絞り込みなし（全件表示中）</span>';
+    return;
+  }
+  els.chartConditions.innerHTML = prefix + items.map(it => `
+    <span class="condition-chip"><span class="condition-chip__label">${escapeHtml(it.label)}</span>${escapeHtml(it.text)}</span>
+  `).join('');
 }
 
 function closeChartModal() {
@@ -866,15 +936,18 @@ function renderChart() {
     console.warn('Chart.js が読み込まれていません。');
     return;
   }
+  populateChartAxisSelect();
   populateChartMetricSelect();
+  renderChartConditions();
 
   const { tabDef, rows } = getCurrentViewData();
   const metricKey = els.chartMetricSelect.value;
   const metricCol = getChartableMetrics().find(m => m.key === metricKey);
   if (!metricCol) return;
 
-  // ラベル列：タブの先頭の表示列を使う（日付別なら日付、店舗別なら店舗名、など）
-  const labelCol = tabDef.columns[tabDef.columns.length - 1] || tabDef.columns[0];
+  // 横軸（分類）列：ユーザーが選択した列を使う
+  const axisCols = getChartAxisColumns();
+  const labelCol = axisCols.find(c => c.key === els.chartAxisSelect.value) || axisCols[axisCols.length - 1] || axisCols[0];
 
   // データが多すぎると見づらいため、指標の降順で上位20件に絞る
   const sorted = [...rows].sort((a, b) => (b[metricKey] || 0) - (a[metricKey] || 0));
