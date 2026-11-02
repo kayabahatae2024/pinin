@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -54,6 +55,18 @@
     <button id="logoutBtn" class="btn btn--ghost btn--sm">ログアウト</button>
   </div>
 </header>
+
+<!-- 最新データ取得確認モーダル -->
+<div id="syncModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <h3>最新データを取得しますか？</h3>
+    <p>Googleスプレッドシートから最新のデータを取得します。データ量によっては数秒〜数十秒かかる場合があります。</p>
+    <div class="modal-actions">
+      <button id="syncCancelBtn" class="btn btn--ghost">キャンセル</button>
+      <button id="syncConfirmBtn" class="btn btn--primary">取得する</button>
+    </div>
+  </div>
+</div>
 
 <!-- ログアウト確認モーダル -->
 <div id="logoutModal" class="modal-overlay" style="display:none;">
@@ -108,6 +121,12 @@
       <div class="field field--wide">
         <label for="chartMetricSelect">縦軸（数値）</label>
         <select id="chartMetricSelect"></select>
+      </div>
+      <div class="field field--wide chart-modal__values-toggle">
+        <label class="checkbox">
+          <input type="checkbox" id="chartShowValues" checked>
+          <span>数値を表示する</span>
+        </label>
       </div>
     </div>
     <div class="chart-modal__conditions" id="chartConditions"></div>
