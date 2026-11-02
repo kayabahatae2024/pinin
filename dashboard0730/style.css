@@ -250,6 +250,53 @@ button, input, select {
 }
 .checkbox input { width: 16px; height: 16px; accent-color: var(--accent); }
 
+/* ---------- 複数選択セレクト・タグ入力 ---------- */
+
+.field select[multiple] {
+  height: auto;
+  padding: 4px;
+}
+.field select[multiple] option {
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.field select[multiple] option:checked {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 6px 5px 10px;
+  border-radius: 999px;
+}
+
+.tag-chip__remove {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 50%;
+}
+.tag-chip__remove:hover { background: rgba(47, 73, 209, 0.18); }
+
 /* ---------- KPI ---------- */
 
 .kpis {
@@ -620,4 +667,48 @@ td.region-cell::before {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+}
+
+/* ---------- グラフ表示モーダル ---------- */
+
+.chart-modal-overlay { align-items: center; }
+
+.chart-modal-card {
+  max-width: 760px;
+  width: 100%;
+}
+
+.chart-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chart-modal__subtitle {
+  font-size: 12px;
+  margin: 0;
+}
+
+.chart-modal__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 14px 0 16px;
+}
+.chart-modal__controls .field { flex: 1 1 200px; }
+
+.chart-modal__canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 360px;
+  background: #FBFBFD;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+@media (max-width: 560px) {
+  .chart-modal-card { max-width: 100%; }
+  .chart-modal__canvas-wrap { height: 280px; }
 }
